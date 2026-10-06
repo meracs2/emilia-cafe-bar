@@ -3,7 +3,7 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Check, Edit3, PackagePlus, Plus, Save, Trash2, X } from 'lucide-react'
-import { useSalesStore, type CatalogProduct, type SalesSection } from '@/store/salesStore'
+import { useSalesStore, type CatalogProduct, type SalesSection } from '@/app/store/salesStore'
 import { createClient } from '@/lib/supabase/client' // Ajustá esta ruta al cliente de Supabase de tu proyecto
 
 const sellSections: { id: SalesSection; label: string }[] = [
