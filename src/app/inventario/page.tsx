@@ -40,23 +40,51 @@ export default function InventarioPage() {
   const [form, setForm] = useState<ProductForm>(emptyForm)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [customAddAmount, setCustomAddAmount] = useState<{ [key: string]: number }>({})
+  const [filterCategory, setFilterCategory] = useState<string>('todos')
+
+  const loadProducts = async () => {
+    const { data, error: fetchErr } = await supabase.from('products').select('*')
+    if (fetchErr) {
+      console.error('Error al cargar productos de Supabase:', fetchErr.message)
+    } else if (data) {
+      const mappedProducts: CatalogProduct[] = data.map((item: any) => ({
+        id: item.id,
+        name: item.name ?? '',
+        category: item.category ?? '',
+        price: item.price ?? 0,
+        stock: item.stock ?? 0,
+        unit: item.unit ?? 'unidad',
+        sections: item.sections ?? [],
+        active: item.active ?? true,
+        offerName: item.offerName ?? item.offer_name ?? '',
+        offerPrice: item.offerPrice ?? item.offer_price ?? undefined,
+        isWeightBased: item.isWeightBased ?? item.is_weight_based ?? false,
+      }))
+      setProducts(mappedProducts)
+      setCatalogProducts(mappedProducts)
+    }
+  }
 
   useEffect(() => {
-    async function loadProducts() {
-      const { data, error } = await supabase.from('products').select('*')
-      if (error) {
-        console.error('Error al cargar productos de Supabase:', error.message)
-      } else if (data) {
-        setProducts(data as CatalogProduct[])
-        setCatalogProducts(data as CatalogProduct[])
-      }
-    }
     loadProducts()
   }, [setCatalogProducts, supabase])
 
   const stockTotal = products.reduce((sum, product) => sum + product.stock, 0)
   const lowStockCount = products.filter((product) => product.active && product.stock <= (product.isWeightBased ? 1 : 5)).length
+
+  const filteredProducts = useMemo(() => {
+    if (filterCategory === 'todos') return products
+    return products.filter((product) => {
+      const cat = product.category.toLowerCase()
+      if (filterCategory === 'comida') return cat.includes('comida')
+      if (filterCategory === 'bebida') return cat.includes('bebida')
+      if (filterCategory === 'helado') return cat.includes('helado')
+      if (filterCategory === 'otro') {
+        return !cat.includes('comida') && !cat.includes('bebida') && !cat.includes('helado')
+      }
+      return true
+    })
+  }, [products, filterCategory])
 
   const resetForm = () => {
     setForm(emptyForm)
@@ -73,95 +101,95 @@ export default function InventarioPage() {
       setError('Completá el nombre, la categoría, la unidad y al menos una sección de venta.')
       return
     }
-    if (!Number.isFinite(form.price) || form.price < 0 || !Number.isFinite(form.stock) || form.stock < 0) {
-      setError('El precio y el stock deben ser números iguales o mayores a cero.')
-      return
-    }
 
     setLoading(true)
     setError('')
 
     try {
-      const productPayload: Omit<CatalogProduct, 'id'> = {
+      const productPayload: any = {
         name,
         category,
-        price: form.price,
-        stock: form.stock,
+        price: Number(form.price),
+        stock: Number(form.stock),
         unit: form.unit.trim(),
         sections: form.sections,
         active: form.active,
         offerName: form.offerName?.trim() || null,
-        offerPrice: form.offerName?.trim() ? form.offerPrice : null,
+        offerPrice: form.offerName?.trim() ? Number(form.offerPrice) : null,
         isWeightBased: form.isWeightBased ?? false,
+        offer_name: form.offerName?.trim() || null,
+        offer_price: form.offerName?.trim() ? Number(form.offerPrice) : null,
+        is_weight_based: form.isWeightBased ?? false,
       }
 
+      let resError = null
+
       if (editingId) {
-        const { data, error: updateErr } = await supabase
+        const { error: updateErr } = await supabase
           .from('products')
           .update(productPayload)
           .eq('id', editingId)
-          .select()
-          .single()
-
-        if (updateErr) {
-          setError(`No se pudo actualizar el producto en Supabase: ${updateErr.message}`)
-          return
-        }
-
-        const updatedProduct = data as CatalogProduct
-        setProducts((prev) =>
-          prev.map((product) => (product.id === editingId ? updatedProduct : product))
-        )
-        setCatalogProducts(
-          useSalesStore.getState().products.map((product) =>
-            product.id === editingId ? updatedProduct : product,
-          ),
-        )
+        resError = updateErr
       } else {
-        const { data, error: insertErr } = await supabase
+        const { error: insertErr } = await supabase
           .from('products')
           .insert([productPayload])
-          .select()
-          .single()
+        resError = insertErr
+      }
 
-        if (insertErr) {
-          setError(`No se pudo crear el producto en Supabase: ${insertErr.message}`)
-          return
-        }
-
-        const createdProduct = data as CatalogProduct
-        setProducts((prev) => [...prev, createdProduct])
-        setCatalogProducts([...useSalesStore.getState().products, createdProduct])
+      if (resError) {
+        const errorDetails = JSON.stringify(resError, null, 2)
+        console.error('Detalle COMPLETO del error en Supabase:', errorDetails)
+        setError(`Error de Supabase: ${resError.message || errorDetails} (Código: ${resError.code || 'N/A'})`)
+        setLoading(false)
+        return
       }
 
       resetForm()
-    } catch (submitError) {
-      const message = submitError instanceof Error ? submitError.message : 'Error inesperado al guardar.'
-      setError(`No se pudo completar el guardado en Supabase: ${message}`)
+      await loadProducts()
+    } catch (submitError: any) {
+      console.error('Error inesperado:', submitError)
+      setError(`Error al guardar: ${submitError?.message || 'Inesperado'}`)
     } finally {
       setLoading(false)
     }
   }
 
-  const handleQuickUpdate = async (id: string, patch: Partial<Omit<CatalogProduct, 'id'>>) => {
+  const handleQuickUpdate = async (id: string, patch: Partial<CatalogProduct>) => {
+    const dbPatch: any = {}
+    if (patch.active !== undefined) dbPatch.active = patch.active
+    if (patch.stock !== undefined) dbPatch.stock = patch.stock
+    if (patch.price !== undefined) dbPatch.price = patch.price
+    if (patch.name !== undefined) dbPatch.name = patch.name
+    if (patch.category !== undefined) dbPatch.category = patch.category
+    if (patch.unit !== undefined) dbPatch.unit = patch.unit
+    if (patch.sections !== undefined) dbPatch.sections = patch.sections
+
+    if (patch.offerName !== undefined) {
+      dbPatch.offerName = patch.offerName
+      dbPatch.offer_name = patch.offerName
+    }
+    if (patch.offerPrice !== undefined) {
+      dbPatch.offerPrice = patch.offerPrice
+      dbPatch.offer_price = patch.offerPrice
+    }
+    if (patch.isWeightBased !== undefined) {
+      dbPatch.isWeightBased = patch.isWeightBased
+      dbPatch.is_weight_based = patch.isWeightBased
+    }
+
     const { error: err } = await supabase
       .from('products')
-      .update(patch)
+      .update(dbPatch)
       .eq('id', id)
 
     if (err) {
-      alert(`No se pudo actualizar en Supabase: ${err.message}`)
+      console.error('Error en quick update:', err)
+      alert(`No se pudo actualizar: ${err.message}`)
       return
     }
 
-    setProducts((prev) =>
-      prev.map((product) => (product.id === id ? { ...product, ...patch } : product))
-    )
-    setCatalogProducts(
-      useSalesStore.getState().products.map((product) =>
-        product.id === id ? { ...product, ...patch } : product,
-      ),
-    )
+    await loadProducts()
   }
 
   const handleAdjustStock = (product: CatalogProduct, delta: number) => {
@@ -170,9 +198,7 @@ export default function InventarioPage() {
   }
 
   const handleDeleteProduct = async (product: CatalogProduct) => {
-    const confirmed = window.confirm(
-      `¿Eliminar "${product.name}" del catálogo? Los movimientos de caja ya registrados se conservarán.`
-    )
+    const confirmed = window.confirm(`¿Eliminar "${product.name}" del catálogo?`)
     if (!confirmed) return
 
     const { error: deleteErr } = await supabase
@@ -181,12 +207,11 @@ export default function InventarioPage() {
       .eq('id', product.id)
 
     if (deleteErr) {
-      alert(`Error al eliminar en Supabase: ${deleteErr.message}`)
+      alert(`Error al eliminar: ${deleteErr.message}`)
       return
     }
 
-    setProducts((prev) => prev.filter((p) => p.id !== product.id))
-    setCatalogProducts(useSalesStore.getState().products.filter((p) => p.id !== product.id))
+    await loadProducts()
     if (editingId === product.id) resetForm()
   }
 
@@ -220,7 +245,7 @@ export default function InventarioPage() {
     <main className="min-h-screen bg-[#FAFAFA] p-4 text-stone-800 md:p-8">
       <div className="mx-auto max-w-7xl">
         <header className="mb-6 flex items-center gap-3 rounded-[28px] border border-stone-200 bg-white p-5 shadow-sm">
-          <Link href="/" className="rounded-xl bg-[#EDE9FE] p-2.5 text-[#6D28D9] transition hover:bg-[#ddd6fe]" aria-label="Volver al inicio">
+          <Link href="/" className="rounded-xl bg-[#EDE9FE] p-2.5 text-[#6D28D9] transition hover:bg-[#ddd6fe]">
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div>
@@ -252,7 +277,7 @@ export default function InventarioPage() {
                 <p className="mt-1 text-xs text-stone-500">Los cambios se guardan directamente en Supabase.</p>
               </div>
               {editingId ? (
-                <button type="button" onClick={resetForm} className="rounded-lg p-2 text-stone-500 hover:bg-stone-100" aria-label="Cancelar edición">
+                <button type="button" onClick={resetForm} className="rounded-lg p-2 text-stone-500 hover:bg-stone-100">
                   <X className="h-4 w-4" />
                 </button>
               ) : (
@@ -263,12 +288,12 @@ export default function InventarioPage() {
             <div className="space-y-3">
               <label className="block text-sm font-medium">
                 Producto / gusto
-                <input required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} className="mt-1 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm" placeholder="Ej. Queso Tybo / Dulce de leche" />
+                <input required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} className="mt-1 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm" placeholder="Ej. Empanadas árabes" />
               </label>
 
               <label className="block text-sm font-medium">
                 Categoría
-                <input required value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} className="mt-1 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm" placeholder="Ej. Fiambrería, Helados, Bebidas" />
+                <input required value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} className="mt-1 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm" placeholder="Ej. Comida" />
               </label>
 
               <div className="rounded-xl border border-purple-200 bg-purple-50/50 p-3">
@@ -284,7 +309,7 @@ export default function InventarioPage() {
                         unit: isWeight ? 'kg' : 'unidad',
                       })
                     }}
-                    className="h-4 w-4 rounded border-purple-300 text-[#6D28D9] focus:ring-[#6D28D9]"
+                    className="h-4 w-4 rounded border-purple-300 text-[#6D28D9]"
                   />
                   <Scale className="h-4 w-4 text-[#6D28D9]" />
                   Producto vendido por peso (Kilo / Gramo)
@@ -297,7 +322,7 @@ export default function InventarioPage() {
                   <input type="number" min="0" step="0.01" value={form.price} onChange={(event) => setForm({ ...form, price: Number(event.target.value) })} className="mt-1 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm" />
                 </label>
                 <label className="block text-sm font-medium">
-                  {form.isWeightBased ? 'Stock inicial (ej. 2.50)' : 'Stock inicial'}
+                  Stock inicial
                   <input type="number" min="0" step={form.isWeightBased ? '0.001' : '1'} value={form.stock} onChange={(event) => setForm({ ...form, stock: Number(event.target.value) })} className="mt-1 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm" />
                 </label>
               </div>
@@ -310,7 +335,7 @@ export default function InventarioPage() {
                     <option value="g">Gramo (g)</option>
                   </select>
                 ) : (
-                  <input required value={form.unit} onChange={(event) => setForm({ ...form, unit: event.target.value })} className="mt-1 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm" placeholder="unidad, pack, lata…" />
+                  <input required value={form.unit} onChange={(event) => setForm({ ...form, unit: event.target.value })} className="mt-1 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm" placeholder="unidad, docena, pack…" />
                 )}
               </label>
 
@@ -318,7 +343,7 @@ export default function InventarioPage() {
                 <legend className="mb-2 text-sm font-medium">Disponible para vender en</legend>
                 <div className="grid grid-cols-2 gap-2">
                   {sellSections.map((section) => (
-                    <label key={section.id} className="flex items-center gap-2 rounded-xl border border-stone-200 px-3 py-2 text-xs">
+                    <label key={section.id} className="flex items-center gap-2 rounded-xl border border-stone-200 px-3 py-2 text-xs cursor-pointer">
                       <input type="checkbox" checked={form.sections.includes(section.id)} onChange={() => toggleSection(section.id)} />
                       {section.label}
                     </label>
@@ -326,36 +351,58 @@ export default function InventarioPage() {
                 </div>
               </fieldset>
 
-              <label className="flex items-center gap-2 text-sm font-medium">
+              <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
                 <input type="checkbox" checked={form.active} onChange={(event) => setForm({ ...form, active: event.target.checked })} />
                 Producto activo y disponible para venta
               </label>
 
               <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3">
                 <p className="mb-2 text-sm font-semibold">Oferta opcional</p>
-                <input value={form.offerName ?? ''} onChange={(event) => setForm({ ...form, offerName: event.target.value })} className="mb-2 w-full rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm" placeholder="Ej. Promo por kg" />
+                <input value={form.offerName ?? ''} onChange={(event) => setForm({ ...form, offerName: event.target.value })} className="mb-2 w-full rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm" placeholder="Ej. Promo" />
                 <input type="number" min="0" step="0.01" value={form.offerPrice ?? ''} onChange={(event) => setForm({ ...form, offerPrice: event.target.value === '' ? undefined : Number(event.target.value) })} className="w-full rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm" placeholder="Precio promocional" />
               </div>
             </div>
 
-            {error && <p role="alert" className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+            {error && <p role="alert" className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700 font-semibold">{error}</p>}
             <button type="submit" disabled={loading} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#6D28D9] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#5B21B6] disabled:opacity-50">
               {editingId ? <Save className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
               {loading ? 'Guardando en Supabase...' : editingId ? 'Guardar cambios' : 'Agregar al catálogo'}
             </button>
           </form>
 
-          <section className="rounded-[28px] border border-stone-200 bg-white p-5 shadow-sm">
-            <div className="mb-4">
+          {/* Sección de productos compartidos con filtros, altura máxima y scroll interno */}
+          <section className="rounded-[28px] border border-stone-200 bg-white p-5 shadow-sm flex flex-col h-[700px] lg:h-[calc(100vh-14rem)]">
+            <div className="mb-4 flex-shrink-0">
               <h2 className="text-lg font-bold">Productos compartidos</h2>
               <p className="mt-1 text-xs text-stone-500">Almacén y los sectores seleccionados consultan estas mismas existencias.</p>
-            </div>
-            <div className="space-y-3">
-              {products.map((product) => {
-                const isKg = product.isWeightBased && product.unit.toLowerCase() === 'kg'
-                const isGram = product.isWeightBased && product.unit.toLowerCase() === 'g'
-                const amountInput = customAddAmount[product.id] ?? (isKg ? 0.5 : isGram ? 100 : 1)
 
+              {/* Botones de filtros rápidos por categoría */}
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {[
+                  { id: 'todos', label: 'Todos' },
+                  { id: 'comida', label: 'Comida' },
+                  { id: 'bebida', label: 'Bebidas' },
+                  { id: 'helado', label: 'Helados' },
+                  { id: 'otro', label: 'Otros' },
+                ].map((filter) => (
+                  <button
+                    key={filter.id}
+                    type="button"
+                    onClick={() => setFilterCategory(filter.id)}
+                    className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition ${
+                      filterCategory === filter.id
+                        ? 'bg-[#6D28D9] text-white shadow-sm'
+                        : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                    }`}
+                  >
+                    {filter.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-3 overflow-y-auto pr-2 flex-1">
+              {filteredProducts.map((product) => {
                 return (
                   <article key={product.id} className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
                     <div className="flex flex-wrap items-start justify-between gap-3">
@@ -397,48 +444,15 @@ export default function InventarioPage() {
                         Stock: {product.stock.toLocaleString('es-AR', { maximumFractionDigits: 3 })} {product.unit}
                       </p>
 
-                      {product.isWeightBased ? (
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          {isKg ? (
-                            <>
-                              <button onClick={() => handleAdjustStock(product, -0.1)} className="rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs font-bold hover:bg-stone-100">-100g</button>
-                              <button onClick={() => handleAdjustStock(product, -0.5)} className="rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs font-bold hover:bg-stone-100">-500g</button>
-                              <button onClick={() => handleAdjustStock(product, 0.25)} className="rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs font-bold hover:bg-stone-100">+250g</button>
-                              <button onClick={() => handleAdjustStock(product, 0.5)} className="rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs font-bold hover:bg-stone-100">+500g</button>
-                              <button onClick={() => handleAdjustStock(product, 1)} className="rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs font-bold hover:bg-stone-100">+1 kg</button>
-                            </>
-                          ) : (
-                            <>
-                              <button onClick={() => handleAdjustStock(product, -100)} className="rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs font-bold hover:bg-stone-100">-100g</button>
-                              <button onClick={() => handleAdjustStock(product, 100)} className="rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs font-bold hover:bg-stone-100">+100g</button>
-                              <button onClick={() => handleAdjustStock(product, 500)} className="rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs font-bold hover:bg-stone-100">+500g</button>
-                            </>
-                          )}
-
-                          <div className="flex items-center gap-1 border-l border-stone-300 pl-2 ml-1">
-                            <input
-                              type="number"
-                              step={isKg ? '0.01' : '1'}
-                              value={amountInput}
-                              onChange={(e) => setCustomAddAmount({ ...customAddAmount, [product.id]: Number(e.target.value) })}
-                              className="w-16 rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs text-center font-bold"
-                            />
-                            <button onClick={() => handleAdjustStock(product, amountInput)} className="rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs font-bold text-emerald-700 hover:bg-emerald-50">
-                              + Sumar
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex gap-2">
-                          <button onClick={() => handleAdjustStock(product, -1)} className="rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-sm font-bold hover:bg-stone-100" aria-label={`Quitar una unidad de ${product.name}`}>−</button>
-                          <button onClick={() => handleAdjustStock(product, 1)} className="flex items-center gap-1 rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-sm font-bold hover:bg-stone-100" aria-label={`Agregar una unidad de ${product.name}`}><Check className="h-3.5 w-3.5" />+1</button>
-                        </div>
-                      )}
+                      <div className="flex gap-2">
+                        <button onClick={() => handleAdjustStock(product, -1)} className="rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-sm font-bold hover:bg-stone-100">−</button>
+                        <button onClick={() => handleAdjustStock(product, 1)} className="flex items-center gap-1 rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-sm font-bold hover:bg-stone-100"><Check className="h-3.5 w-3.5" />+1</button>
+                      </div>
                     </div>
                   </article>
                 )
               })}
-              {products.length === 0 && <p className="rounded-xl bg-stone-50 p-5 text-center text-sm text-stone-500">Todavía no hay productos activos en el catálogo.</p>}
+              {filteredProducts.length === 0 && <p className="rounded-xl bg-stone-50 p-5 text-center text-sm text-stone-500">No hay productos en esta categoría.</p>}
             </div>
           </section>
         </div>

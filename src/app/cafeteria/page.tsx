@@ -1,15 +1,23 @@
 ﻿'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { ArrowLeft, Plus, Coffee, Trash2, Palette, ChevronDown, DollarSign, Package, Sparkles } from 'lucide-react'
+import { ArrowLeft, Plus, Coffee, Trash2, Palette, ChevronDown, DollarSign, Package, Sparkles, X, ShoppingCart } from 'lucide-react'
 import Link from 'next/link'
-import SalesCheckout from '@/app/components/SalesCheckout'
 import { createClient } from '@/lib/supabase/client'
 import type { CatalogProduct, SalesSection } from '@/store/salesStore'
 
 export interface PaymentAllocation {
   method: string
   amount: number
+}
+
+export interface TicketItem {
+  productId: string
+  item: string
+  quantity: number
+  unitPrice: number
+  total: number
+  notes?: string
 }
 
 export interface Sale {
@@ -23,6 +31,7 @@ export interface Sale {
   created_at?: string
   paymentMethod?: string
   paymentAllocations?: PaymentAllocation[]
+  notes?: string
 }
 
 type ThemeMode = 'minimal-light' | 'minimal-dark' | 'normal-light' | 'normal-dark'
@@ -42,6 +51,19 @@ export default function CafeteriaPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [products, setProducts] = useState<CatalogProduct[]>([])
   const [sales, setSales] = useState<Sale[]>([])
+  
+  // Estados para el armado del ticket en el modal
+  const [ticketItems, setTicketItems] = useState<TicketItem[]>([])
+  const [selectedProductId, setSelectedProductId] = useState<string>('')
+  const [quantity, setQuantity] = useState<number | string>(1)
+  const [notes, setNotes] = useState<string>('')
+  
+  // Pago del ticket
+  const [paymentMethod, setPaymentMethod] = useState<string>('Efectivo')
+  const [mixedCash, setMixedCash] = useState<number>(0)
+  const [mixedTransfer, setMixedTransfer] = useState<number>(0)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   const loadData = async () => {
@@ -108,9 +130,112 @@ export default function CafeteriaPage() {
     setSales((prev) => prev.filter((sale) => sale.id !== id))
   }
 
+  const handleOpenModal = () => {
+    if (productCatalog.length > 0 && !selectedProductId) {
+      setSelectedProductId(productCatalog[0].id)
+    }
+    setTicketItems([])
+    setQuantity(1)
+    setNotes('')
+    setPaymentMethod('Efectivo')
+    setMixedCash(0)
+    setMixedTransfer(0)
+    setIsModalOpen(true)
+  }
+
   const handleCloseModal = () => {
     setIsModalOpen(false)
     loadData()
+  }
+
+  const selectedProductObj = productCatalog.find((p) => p.id === selectedProductId)
+  const numericQuantity = typeof quantity === 'number' ? quantity : parseFloat(quantity) || 1
+  const currentItemPrice = selectedProductObj ? (selectedProductObj.offerPrice ?? selectedProductObj.price) : 0
+
+  const handleAddItemToTicket = () => {
+    if (!selectedProductObj) {
+      alert('Selecciona un producto válido')
+      return
+    }
+
+    const subtotal = currentItemPrice * numericQuantity
+
+    const newItem: TicketItem = {
+      productId: selectedProductObj.id,
+      item: selectedProductObj.name,
+      quantity: numericQuantity,
+      unitPrice: currentItemPrice,
+      total: subtotal,
+      notes: notes.trim() || undefined,
+    }
+
+    setTicketItems((prev) => [...prev, newItem])
+    setNotes('')
+    setQuantity(1)
+  }
+
+  const handleRemoveTicketItem = (index: number) => {
+    setTicketItems((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const ticketTotal = ticketItems.reduce((acc, item) => acc + item.total, 0)
+
+  const handleConfirmTicket = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (ticketItems.length === 0) {
+      alert('Agrega al menos un producto al ticket antes de confirmar')
+      return
+    }
+
+    let paymentAllocations: PaymentAllocation[] | undefined = undefined
+
+    if (paymentMethod === 'Mixto') {
+      const cashAmount = Number(mixedCash) || 0
+      const transferAmount = Number(mixedTransfer) || 0
+
+      if (cashAmount + transferAmount !== ticketTotal) {
+        alert(`La suma de los montos (${cashAmount + transferAmount}) debe ser igual al total del ticket (${ticketTotal})`)
+        return
+      }
+
+      paymentAllocations = [
+        { method: 'Efectivo', amount: cashAmount },
+        { method: 'Transferencia', amount: transferAmount }
+      ]
+    }
+
+    setIsSubmitting(true)
+    const createdAt = new Date().toISOString()
+
+    for (const item of ticketItems) {
+      const newSale = {
+        productId: item.productId,
+        item: item.item,
+        quantity: item.quantity,
+        total: item.total,
+        section: 'cafeteria' as SalesSection,
+        paymentMethod,
+        paymentAllocations,
+        notes: item.notes,
+        created_at: createdAt,
+      }
+
+      const { error } = await supabase.from('sales').insert([newSale])
+      if (error) {
+        alert(`Error al registrar venta de ${item.item}: ${error.message}`)
+        setIsSubmitting(false)
+        return
+      }
+
+      const prod = products.find((p) => p.id === item.productId)
+      if (prod) {
+        const newStock = Math.max(0, prod.stock - item.quantity)
+        await supabase.from('products').update({ stock: newStock }).eq('id', prod.id)
+      }
+    }
+
+    setIsSubmitting(false)
+    handleCloseModal()
   }
 
   const totalVentas = sales.reduce((acc, sale) => acc + sale.total, 0)
@@ -202,7 +327,7 @@ export default function CafeteriaPage() {
             </div>
 
             <button
-              onClick={() => setIsModalOpen(true)}
+              onClick={handleOpenModal}
               className="flex shrink-0 items-center gap-2 rounded-xl bg-[#8C1D40] px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#6F1632]"
             >
               <Plus className="h-4 w-4" />
@@ -283,8 +408,13 @@ export default function CafeteriaPage() {
                     <div>
                       <p className="font-bold">{sale.item}</p>
                       <p className={`text-xs ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-                        {sale.quantity} unidades · {new Date(sale.createdAt || sale.created_at || Date.now()).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Argentina/Buenos_Aires' })}
+                        Cant: {sale.quantity} · {sale.paymentMethod === 'Mixto' ? 'Pago Mixto' : sale.paymentMethod || 'Efectivo'} · {new Date(sale.createdAt || sale.created_at || Date.now()).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Argentina/Buenos_Aires' })}
                       </p>
+                      {sale.notes && (
+                        <p className={`text-xs italic mt-0.5 ${isDark ? 'text-stone-300' : 'text-stone-600'}`}>
+                          📝 {sale.notes}
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -345,7 +475,236 @@ export default function CafeteriaPage() {
         </section>
       </div>
 
-      {isModalOpen && <SalesCheckout section="cafeteria" products={productCatalog} isDark={isDark} onClose={handleCloseModal} />}
+      {/* Modal con Armado de Ticket, Cantidad Manual y Pago Mixto */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 transition-all overflow-y-auto">
+          <div className={`w-full max-w-xl overflow-hidden rounded-[28px] border shadow-2xl my-8 animate-in fade-in zoom-in-95 duration-200 ${
+            isDark ? 'border-stone-800 bg-stone-900 text-stone-100' : 'border-stone-200 bg-white text-stone-800'
+          }`}>
+            {/* Cabecera */}
+            <div className={`px-6 py-4 border-b flex items-center justify-between ${
+              isDark ? 'border-stone-800 bg-stone-800/50' : 'border-stone-100 bg-stone-50/50'
+            }`}>
+              <div className="flex items-center gap-2.5">
+                <div className={`rounded-xl p-2 ${isDark ? 'bg-stone-800 text-[#F9D6DE]' : 'bg-[#FDECEF] text-[#8C1D40]'}`}>
+                  <ShoppingCart className="h-4 w-4" />
+                </div>
+                <h3 className="text-lg font-bold">Armar Ticket de Venta</h3>
+              </div>
+              <button 
+                onClick={handleCloseModal}
+                className={`rounded-xl p-2 transition-colors ${
+                  isDark ? 'text-stone-400 hover:bg-stone-800 hover:text-stone-200' : 'text-stone-400 hover:bg-stone-100 hover:text-stone-600'
+                }`}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Formulario / Constructor de Ticket */}
+            <form onSubmit={handleConfirmTicket} className="p-6 space-y-5">
+              {/* Sección de adición de productos */}
+              <div className={`p-4 rounded-2xl border space-y-3 ${
+                isDark ? 'border-stone-800 bg-stone-950' : 'border-stone-200 bg-stone-50/70'
+              }`}>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-[#8C1D40]">Agregar producto al ticket</h4>
+                
+                <div>
+                  <label className={`block text-xs font-semibold mb-1 ${isDark ? 'text-stone-300' : 'text-stone-700'}`}>
+                    Producto
+                  </label>
+                  <select
+                    value={selectedProductId}
+                    onChange={(e) => setSelectedProductId(e.target.value)}
+                    className={`w-full rounded-xl border px-3 py-2.5 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-[#8C1D40] ${
+                      isDark ? 'border-stone-700 bg-stone-800 text-stone-100' : 'border-stone-200 bg-white text-stone-800'
+                    }`}
+                  >
+                    {productCatalog.map((prod) => (
+                      <option key={prod.id} value={prod.id}>
+                        {prod.name} (${prod.offerPrice ?? prod.price} - Stock: {prod.stock} {prod.unit})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={`block text-xs font-semibold mb-1 ${isDark ? 'text-stone-300' : 'text-stone-700'}`}>
+                      Cantidad / Unidades
+                    </label>
+                    <input
+                      type="number"
+                      step="any"
+                      min="0.01"
+                      value={quantity}
+                      onChange={(e) => setQuantity(e.target.value)}
+                      placeholder="Ej: 1, 12, 100..."
+                      className={`w-full rounded-xl border px-3 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-[#8C1D40] ${
+                        isDark ? 'border-stone-700 bg-stone-800 text-stone-100' : 'border-stone-200 bg-white text-stone-800'
+                      }`}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={`block text-xs font-semibold mb-1 ${isDark ? 'text-stone-300' : 'text-stone-700'}`}>
+                      Sabores / Mix (Opcional)
+                    </label>
+                    <input
+                      type="text"
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      placeholder="Ej: 6 criollas / Mitad jamón"
+                      className={`w-full rounded-xl border px-3 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-[#8C1D40] ${
+                        isDark ? 'border-stone-700 bg-stone-800 text-stone-100' : 'border-stone-200 bg-white text-stone-800'
+                      }`}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-1">
+                  <button
+                    type="button"
+                    onClick={handleAddItemToTicket}
+                    className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold text-white bg-[#8C1D40] transition hover:bg-[#6F1632]`}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Agregar al ticket
+                  </button>
+                </div>
+              </div>
+
+              {/* Listado de ítems agregados al ticket */}
+              <div>
+                <h4 className={`text-xs font-bold mb-2 ${isDark ? 'text-stone-300' : 'text-stone-700'}`}>
+                  Ítems en el ticket ({ticketItems.length})
+                </h4>
+                {ticketItems.length === 0 ? (
+                  <p className={`text-xs italic p-4 text-center rounded-2xl border border-dashed ${
+                    isDark ? 'border-stone-800 text-stone-500' : 'border-stone-200 text-stone-400'
+                  }`}>
+                    No hay productos agregados todavía. Ingresa la cantidad e indícalos arriba.
+                  </p>
+                ) : (
+                  <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                    {ticketItems.map((ti, index) => (
+                      <div
+                        key={index}
+                        className={`flex items-center justify-between p-3 rounded-xl border text-xs ${
+                          isDark ? 'border-stone-800 bg-stone-950' : 'border-stone-200 bg-white'
+                        }`}
+                      >
+                        <div>
+                          <p className="font-bold">{ti.item} <span className="font-normal opacity-80">(x{ti.quantity})</span></p>
+                          {ti.notes && <p className="italic text-stone-400 mt-0.5">📝 {ti.notes}</p>}
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="font-black">${ti.total.toLocaleString('es-AR')}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveTicketItem(index)}
+                            className="text-red-500 hover:text-red-700 p-1"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Selección de Método de Pago */}
+              <div>
+                <label className={`block text-xs font-semibold mb-1.5 ${isDark ? 'text-stone-300' : 'text-stone-700'}`}>
+                  Método de Pago Global
+                </label>
+                <select
+                  value={paymentMethod}
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                  className={`w-full rounded-2xl border px-4 py-3 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-[#8C1D40] ${
+                    isDark ? 'border-stone-700 bg-stone-800 text-stone-100' : 'border-stone-200 bg-stone-50 text-stone-800'
+                  }`}
+                >
+                  <option value="Efectivo">Efectivo</option>
+                  <option value="Transferencia">Transferencia</option>
+                  <option value="Tarjeta">Tarjeta</option>
+                  <option value="Mixto">Mixto (Efectivo + Transferencia)</option>
+                </select>
+              </div>
+
+              {/* Campos dinámicos si se selecciona Pago Mixto */}
+              {paymentMethod === 'Mixto' && (
+                <div className={`grid grid-cols-2 gap-4 rounded-2xl border p-4 animate-in fade-in duration-200 ${
+                  isDark ? 'border-stone-800 bg-stone-950' : 'border-stone-200 bg-[#FFF8F9]'
+                }`}>
+                  <div>
+                    <label className={`block text-xs font-semibold mb-1.5 ${isDark ? 'text-stone-300' : 'text-stone-700'}`}>
+                      Efectivo ($)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={mixedCash}
+                      onChange={(e) => setMixedCash(parseFloat(e.target.value) || 0)}
+                      className={`w-full rounded-xl border px-3 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-[#8C1D40] ${
+                        isDark ? 'border-stone-700 bg-stone-800 text-stone-100' : 'border-stone-200 bg-white text-stone-800'
+                      }`}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className={`block text-xs font-semibold mb-1.5 ${isDark ? 'text-stone-300' : 'text-stone-700'}`}>
+                      Transferencia ($)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={mixedTransfer}
+                      onChange={(e) => setMixedTransfer(parseFloat(e.target.value) || 0)}
+                      className={`w-full rounded-xl border px-3 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-[#8C1D40] ${
+                        isDark ? 'border-stone-700 bg-stone-800 text-stone-100' : 'border-stone-200 bg-white text-stone-800'
+                      }`}
+                      required
+                    />
+                  </div>
+                  <div className="col-span-2 text-xs text-right font-medium text-stone-500">
+                    Suma asignada: ${(Number(mixedCash) + Number(mixedTransfer)).toLocaleString('es-AR')} / Total ticket:${ticketTotal.toLocaleString('es-AR')}
+                  </div>
+                </div>
+              )}
+
+              {/* Total Final del Ticket */}
+              <div className={`rounded-2xl border p-4 flex items-center justify-between ${
+                isDark ? 'border-stone-800 bg-stone-950' : 'border-stone-200 bg-stone-50'
+              }`}>
+                <span className={`text-xs font-semibold ${isDark ? 'text-stone-400' : 'text-stone-600'}`}>Total del Ticket</span>
+                <span className="text-xl font-black text-[#8C1D40]">${ticketTotal.toLocaleString('es-AR')}</span>
+              </div>
+
+              {/* Botones de acción */}
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={handleCloseModal}
+                  className={`rounded-xl px-4 py-3 text-xs font-bold transition ${
+                    isDark ? 'bg-stone-800 text-stone-300 hover:bg-stone-700' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                  }`}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting || ticketItems.length === 0}
+                  className="rounded-xl bg-[#8C1D40] px-5 py-3 text-xs font-bold text-white shadow-sm transition hover:bg-[#6F1632] disabled:opacity-50"
+                >
+                  {isSubmitting ? 'Guardando...' : `Confirmar y cobrar ($${ticketTotal.toLocaleString('es-AR')})`}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </main>
   )
 }
