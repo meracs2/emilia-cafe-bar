@@ -1,19 +1,5 @@
 import { create } from 'zustand'
-
-export type SalesSection = 'cafeteria' | 'heladeria' | 'bar' | 'almacen' | 'mesas' | 'delivery'
-
-export interface CatalogProduct {
-  id: string
-  name: string
-  category: string
-  price: number
-  stock: number
-  unit: string
-  sections: SalesSection[]
-  active: boolean
-  offerName?: string
-  offerPrice?: number
-}
+import { CatalogProduct } from '@/types' // Ajustá la ruta según donde tengas definido el tipo CatalogProduct
 
 export interface SalesState {
   products: CatalogProduct[]
@@ -25,23 +11,14 @@ export interface SalesState {
 
 export const useSalesStore = create<SalesState>((set) => ({
   products: [],
-
   setProducts: (products) => set({ products }),
-
-  addProduct: (product) =>
-    set((state) => ({
-      products: [...state.products, product],
-    })),
-
+  addProduct: (product) => set((state) => ({ products: [...state.products, product] })),
   updateProduct: (id, patch) =>
     set((state) => ({
-      products: state.products.map((item) =>
-        item.id === id ? { ...item, ...patch } : item
-      ),
+      products: state.products.map((p) => (p.id === id ? { ...p, ...patch } : p)),
     })),
-
   deleteProduct: (id) =>
     set((state) => ({
-      products: state.products.filter((item) => item.id !== id),
+      products: state.products.filter((p) => p.id !== id),
     })),
 }))
