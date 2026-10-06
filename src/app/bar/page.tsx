@@ -5,22 +5,7 @@ import { ArrowLeft, Plus, Coffee, Trash2, Palette, ChevronDown, DollarSign, Pack
 import Link from 'next/link'
 import SalesCheckout from '@/app/components/SalesCheckout'
 import { createClient } from '@/lib/supabase/client'
-
-export type SalesSection = 'cafeteria' | 'heladeria' | 'bar' | 'almacen' | 'mesas' | 'delivery'
-
-export interface CatalogProduct {
-  id: string
-  name: string
-  category: string
-  price: number
-  stock: number
-  unit: string
-  sections: SalesSection[]
-  active: boolean
-  offerName?: string | null
-  offerPrice?: number | null
-  isWeightBased?: boolean
-}
+import { CatalogProduct, SalesSection } from '@/store/salesStore'
 
 export interface PaymentAllocation {
   method: string
@@ -62,7 +47,6 @@ export default function BarPage() {
   const [sales, setSales] = useState<Sale[]>([])
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  // 1. CARGAR PRODUCTOS Y VENTAS DESDE SUPABASE
   const loadData = async () => {
     const { data: productsData, error: prodErr } = await supabase
       .from('products')
@@ -112,7 +96,6 @@ export default function BarPage() {
     setIsThemeOpen(false)
   }
 
-  // 2. ELIMINAR VENTA DIRECTAMENTE EN SUPABASE
   const handleRemoveSale = async (id: string) => {
     const confirmed = window.confirm('¿Deseas eliminar este registro de venta?')
     if (!confirmed) return

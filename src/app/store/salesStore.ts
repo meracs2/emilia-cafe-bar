@@ -14,6 +14,7 @@ export interface CatalogProduct {
   active: boolean
   offerName?: string | null
   offerPrice?: number | null
+  isWeightBased?: boolean
 }
 
 export interface SalesState {

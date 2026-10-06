@@ -4,22 +4,7 @@ import { useState, useEffect, type FormEvent } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Check, Edit3, PackagePlus, Plus, Save, Scale, Trash2, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-
-export type SalesSection = 'cafeteria' | 'heladeria' | 'bar' | 'almacen' | 'mesas' | 'delivery'
-
-export interface CatalogProduct {
-  id: string
-  name: string
-  category: string
-  price: number
-  stock: number
-  unit: string
-  sections: SalesSection[]
-  active: boolean
-  offerName?: string | null
-  offerPrice?: number | null
-  isWeightBased?: boolean
-}
+import { CatalogProduct, SalesSection } from '@/store/salesStore'
 
 const sellSections: { id: SalesSection; label: string }[] = [
   { id: 'cafeteria', label: 'Cafetería' },
@@ -55,7 +40,6 @@ export default function InventarioPage() {
   const [loading, setLoading] = useState(false)
   const [customAddAmount, setCustomAddAmount] = useState<{ [key: string]: number }>({})
 
-  // 1. CARGAR PRODUCTOS DESDE SUPABASE
   useEffect(() => {
     async function loadProducts() {
       const { data, error } = await supabase.from('products').select('*')
@@ -77,7 +61,6 @@ export default function InventarioPage() {
     setError('')
   }
 
-  // 2. GUARDAR / EDITAR PRODUCTO
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const name = form.name.trim()
@@ -145,7 +128,6 @@ export default function InventarioPage() {
     resetForm()
   }
 
-  // 3. ACTUALIZACIONES RÁPIDAS DE STOCK
   const handleQuickUpdate = async (id: string, patch: Partial<CatalogProduct>) => {
     const { error: err } = await supabase
       .from('products')
@@ -167,7 +149,6 @@ export default function InventarioPage() {
     handleQuickUpdate(product.id, { stock: newStock })
   }
 
-  // 4. ELIMINAR DE SUPABASE
   const handleDeleteProduct = async (product: CatalogProduct) => {
     const confirmed = window.confirm(
       `¿Eliminar "${product.name}" del catálogo? Los movimientos de caja ya registrados se conservarán.`
@@ -269,7 +250,6 @@ export default function InventarioPage() {
                 <input required value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} className="mt-1 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm" placeholder="Ej. Fiambrería, Helados, Bebidas" />
               </label>
 
-              {/* TIPO DE VENTA: UNIDAD O PESO */}
               <div className="rounded-xl border border-purple-200 bg-purple-50/50 p-3">
                 <label className="flex items-center gap-2.5 text-sm font-semibold text-purple-950 cursor-pointer">
                   <input
@@ -396,7 +376,6 @@ export default function InventarioPage() {
                         Stock: {product.stock.toLocaleString('es-AR', { maximumFractionDigits: 3 })} {product.unit}
                       </p>
 
-                      {/* CONTROLES RÁPIDOS DE STOCK */}
                       {product.isWeightBased ? (
                         <div className="flex flex-wrap items-center gap-1.5">
                           {isKg ? (
