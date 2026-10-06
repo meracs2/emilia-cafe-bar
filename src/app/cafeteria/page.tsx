@@ -59,13 +59,12 @@ export default function CafeteriaPage() {
   const [sales, setSales] = useState<Sale[]>([])
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  // 1. CARGAR PRODUCTOS Y VENTAS DESDE SUPABASE
   const loadData = async () => {
     const { data: productsData, error: prodErr } = await supabase
       .from('products')
       .select('*')
     if (!prodErr && productsData) {
-      setProducts(productsData)
+      setProducts(productsData as CatalogProduct[])
     }
 
     const { data: salesData, error: salesErr } = await supabase
@@ -73,7 +72,7 @@ export default function CafeteriaPage() {
       .select('*')
       .eq('section', 'cafeteria')
     if (!salesErr && salesData) {
-      setSales(salesData)
+      setSales(salesData as Sale[])
     }
   }
 
@@ -111,7 +110,6 @@ export default function CafeteriaPage() {
     setIsThemeOpen(false)
   }
 
-  // 2. ELIMINAR VENTA DIRECTAMENTE EN SUPABASE
   const handleRemoveSale = async (id: string) => {
     const confirmed = window.confirm('¿Deseas eliminar este registro de venta?')
     if (!confirmed) return

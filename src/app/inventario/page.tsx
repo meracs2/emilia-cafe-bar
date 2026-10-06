@@ -46,7 +46,7 @@ export default function InventarioPage() {
       if (error) {
         console.error('Error al cargar productos de Supabase:', error.message)
       } else if (data) {
-        setProducts(data)
+        setProducts(data as CatalogProduct[])
       }
     }
     loadProducts()
@@ -88,8 +88,8 @@ export default function InventarioPage() {
       active: form.active,
       offerName: form.offerName?.trim() || null,
       offerPrice: form.offerName?.trim() ? form.offerPrice : null,
-      isWeightBased: form.isWeightBased,
-    }
+      isWeightBased: form.isWeightBased ?? false,
+    } as any
 
     if (editingId) {
       const { data, error: updateErr } = await supabase
@@ -106,7 +106,7 @@ export default function InventarioPage() {
       }
 
       setProducts((prev) =>
-        prev.map((product) => (product.id === editingId ? data : product))
+        prev.map((product) => (product.id === editingId ? (data as CatalogProduct) : product))
       )
     } else {
       const { data, error: insertErr } = await supabase
@@ -121,7 +121,7 @@ export default function InventarioPage() {
         return
       }
 
-      setProducts((prev) => [...prev, data])
+      setProducts((prev) => [...prev, data as CatalogProduct])
     }
 
     setLoading(false)
@@ -131,7 +131,7 @@ export default function InventarioPage() {
   const handleQuickUpdate = async (id: string, patch: Partial<CatalogProduct>) => {
     const { error: err } = await supabase
       .from('products')
-      .update(patch)
+      .update(patch as any)
       .eq('id', id)
 
     if (err) {
@@ -180,7 +180,7 @@ export default function InventarioPage() {
       sections: product.sections,
       active: product.active,
       offerName: product.offerName ?? '',
-      offerPrice: product.offerPrice,
+      offerPrice: product.offerPrice ?? undefined,
       isWeightBased: product.isWeightBased ?? false,
     })
     setError('')
@@ -254,7 +254,7 @@ export default function InventarioPage() {
                 <label className="flex items-center gap-2.5 text-sm font-semibold text-purple-950 cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={form.isWeightBased}
+                    checked={form.isWeightBased ?? false}
                     onChange={(event) => {
                       const isWeight = event.target.checked
                       setForm({
