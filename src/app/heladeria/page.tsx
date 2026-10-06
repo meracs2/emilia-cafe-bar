@@ -88,7 +88,6 @@ export default function HeladeriaPage() {
 
   const handleSavePricesToSupabase = async () => {
     setSavingPrices(true)
-    // Guardamos los precios en una tabla llamada 'ice_cream_config' o hacemos upsert por id
     for (const option of iceCreamPrices) {
       const { error } = await supabase
         .from('ice_cream_prices')
@@ -109,7 +108,6 @@ export default function HeladeriaPage() {
   }
 
   const loadData = async () => {
-    // Cargar productos de heladería
     const { data: productsData, error: productsError } = await supabase
       .from('products')
       .select('*')
@@ -123,7 +121,6 @@ export default function HeladeriaPage() {
       setProductCatalog(productsData)
     }
 
-    // Cargar ventas de heladería
     const { data: salesData, error: salesError } = await supabase
       .from('sales')
       .select('*')
@@ -144,7 +141,6 @@ export default function HeladeriaPage() {
       })))
     }
 
-    // Cargar precios personalizados de Supabase si existen
     const { data: pricesData, error: pricesError } = await supabase
       .from('ice_cream_prices')
       .select('*')
@@ -227,7 +223,7 @@ export default function HeladeriaPage() {
     const unitPrice = selectedSize.offerPrice ?? selectedSize.price
     const total = unitPrice * quantity
 
-    let paymentMethodValue = singleMethod
+    let paymentMethodValue: string = singleMethod
     let paymentAllocationsValue: Record<string, number> = {}
 
     if (paymentType === 'mixed') {
