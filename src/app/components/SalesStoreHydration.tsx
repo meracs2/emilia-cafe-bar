@@ -6,7 +6,6 @@ import { useSupplierStore } from '@/store/supplierStore'
 import { createClient } from '@/lib/supabase/client'
 
 export function SalesStoreHydration({ children }: { children: ReactNode }) {
-  const setProducts = useSalesStore((state) => state.setProducts)
   const supabase = createClient()
 
   useEffect(() => {
@@ -17,7 +16,7 @@ export function SalesStoreHydration({ children }: { children: ReactNode }) {
         useSupplierStore.persist.rehydrate(),
       ])
 
-      // 2. Traer el catálogo actualizado desde Supabase a Zustand
+      // 2. Traer el catálogo actualizado desde Supabase
       const { data, error } = await supabase
         .from('products')
         .select('*')
@@ -26,12 +25,13 @@ export function SalesStoreHydration({ children }: { children: ReactNode }) {
       if (error) {
         console.error('Error al sincronizar con Supabase:', error.message)
       } else if (data) {
-        setProducts(data)
+        // Asignación directa mediante la API nativa de Zustand
+        useSalesStore.setState({ products: data })
       }
     }
 
     initStores()
-  }, [setProducts, supabase])
+  }, [supabase])
 
   return <>{children}</>
 }
