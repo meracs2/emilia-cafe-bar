@@ -296,7 +296,11 @@ export default function InventarioPage() {
                         {product.offerName && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800">{product.offerName}</span>}
                       </div>
                       <p className="text-xs text-stone-500">{product.category} · ${product.price.toLocaleString('es-AR')} · {product.sections.map((id) => sellSections.find((section) => section.id === id)?.label).filter(Boolean).join(', ')}</p>
-                      {product.offerPrice !== undefined && <p className="mt-1 text-xs font-semibold text-amber-800">Oferta: ${product.offerPrice.toLocaleString('es-AR')}</p>}
+                      {product.offerPrice != null && (
+  <p className="mt-1 text-xs font-semibold text-amber-800">
+    Oferta: ${product.offerPrice.toLocaleString('es-AR')}
+  </p>
+)}
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <button onClick={() => startEditing(product)} className="flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-semibold hover:bg-stone-100">
