@@ -1,22 +1,47 @@
+import { create } from 'zustand'
+
+export type SalesSection = 'cafeteria' | 'heladeria' | 'bar' | 'almacen' | 'mesas' | 'delivery'
+
+export interface CatalogProduct {
+  id: string
+  name: string
+  category: string
+  price: number
+  stock: number
+  unit: string
+  sections: SalesSection[]
+  active: boolean
+  offerName?: string
+  offerPrice?: number
+}
+
 export interface SalesState {
   products: CatalogProduct[]
-  // ... tus otros miembros del estado ...
-  
-  // Agregar esta línea en la interfaz:
   setProducts: (products: CatalogProduct[]) => void
-  
-  addProduct: (product: Omit<CatalogProduct, 'id'>) => void
+  addProduct: (product: CatalogProduct) => void
   updateProduct: (id: string, patch: Partial<CatalogProduct>) => void
   deleteProduct: (id: string) => void
 }
 
 export const useSalesStore = create<SalesState>((set) => ({
   products: [],
-  // ... el resto de tu estado inicial ...
 
-  // Agregar la implementación aquí:
   setProducts: (products) => set({ products }),
 
-  addProduct: (product) => ...
-  // ...
+  addProduct: (product) =>
+    set((state) => ({
+      products: [...state.products, product],
+    })),
+
+  updateProduct: (id, patch) =>
+    set((state) => ({
+      products: state.products.map((item) =>
+        item.id === id ? { ...item, ...patch } : item
+      ),
+    })),
+
+  deleteProduct: (id) =>
+    set((state) => ({
+      products: state.products.filter((item) => item.id !== id),
+    })),
 }))
