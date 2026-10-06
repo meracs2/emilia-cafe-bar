@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, type FormEvent } from 'react'
+import { useState, useEffect, type FormEvent } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Check, Edit3, PackagePlus, Plus, Save, Trash2, X } from 'lucide-react'
 import { useSalesStore, type CatalogProduct, type SalesSection } from '@/store/salesStore'
+import { createClient } from '@/lib/supabase/client' // Ajustá esta ruta al cliente de Supabase de tu proyecto
 
 const sellSections: { id: SalesSection; label: string }[] = [
   { id: 'cafeteria', label: 'Cafetería' },
@@ -29,13 +30,31 @@ const emptyForm: ProductForm = {
 }
 
 export default function InventarioPage() {
+  const supabase = createClient()
+  
   const products = useSalesStore((state) => state.products)
+  const setProducts = useSalesStore((state) => state.setProducts) // Asegúrate de tener una acción para reemplazar la lista completa
   const addProduct = useSalesStore((state) => state.addProduct)
   const updateProduct = useSalesStore((state) => state.updateProduct)
   const deleteProduct = useSalesStore((state) => state.deleteProduct)
+
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<ProductForm>(emptyForm)
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  // 1. CARGAR PRODUCTOS DESDE SUPABASE AL ENTRAR A LA PÁGINA
+  useEffect(() => {
+    async function loadProducts() {
+      const { data, error } = await supabase.from('products').select('*')
+      if (error) {
+        console.error('Error al cargar productos de Supabase:', error.message)
+      } else if (data) {
+        setProducts(data)
+      }
+    }
+    loadProducts()
+  }, [])
 
   const stockTotal = products.reduce((sum, product) => sum + product.stock, 0)
   const lowStockCount = products.filter((product) => product.active && product.stock <= 5).length
@@ -46,10 +65,12 @@ export default function InventarioPage() {
     setError('')
   }
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  // 2. GUARDAR / EDITAR PRODUCTO EN SUPABASE
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const name = form.name.trim()
     const category = form.category.trim()
+
     if (!name || !category || !form.unit.trim() || form.sections.length === 0) {
       setError('Completá el nombre, la categoría, la unidad y al menos una sección de venta.')
       return
@@ -58,25 +79,93 @@ export default function InventarioPage() {
       setError('El precio y el stock deben ser números iguales o mayores a cero.')
       return
     }
-    if (form.offerName?.trim() && (!Number.isFinite(form.offerPrice) || (form.offerPrice ?? -1) < 0)) {
-      setError('Ingresá un precio válido para la oferta.')
+
+    setLoading(true)
+    setError('')
+
+    const productPayload = {
+      name,
+      category,
+      price: form.price,
+      stock: form.stock,
+      unit: form.unit.trim(),
+      sections: form.sections,
+      active: form.active,
+      offerName: form.offerName?.trim() || null,
+      offerPrice: form.offerName?.trim() ? form.offerPrice : null,
+    }
+
+    if (editingId) {
+      // Actualizar en Supabase
+      const { data, error: updateErr } = await supabase
+        .from('products')
+        .update(productPayload)
+        .eq('id', editingId)
+        .select()
+        .single()
+
+      if (updateErr) {
+        setError(`Error en Supabase: ${updateErr.message}`)
+        setLoading(false)
+        return
+      }
+
+      updateProduct(editingId, data)
+    } else {
+      // Insertar nuevo en Supabase
+      const { data, error: insertErr } = await supabase
+        .from('products')
+        .insert([productPayload])
+        .select()
+        .single()
+
+      if (insertErr) {
+        setError(`Error en Supabase: ${insertErr.message}`)
+        setLoading(false)
+        return
+      }
+
+      addProduct(data)
+    }
+
+    setLoading(false)
+    resetForm()
+  }
+
+  // 3. ACTUALIZACIONES RÁPIDAS (STOCK Y ESTADO ACTIVO/INACTIVO)
+  const handleQuickUpdate = async (id: string, patch: Partial<CatalogProduct>) => {
+    const { error: err } = await supabase
+      .from('products')
+      .update(patch)
+      .eq('id', id)
+
+    if (err) {
+      alert(`No se pudo actualizar en Supabase: ${err.message}`)
       return
     }
 
-    const product = {
-      ...form,
-      name,
-      category,
-      unit: form.unit.trim(),
-      offerName: form.offerName?.trim() || undefined,
-      offerPrice: form.offerName?.trim() ? form.offerPrice : undefined,
+    updateProduct(id, patch)
+  }
+
+  // 4. ELIMINAR DE SUPABASE
+  const handleDeleteProduct = async (product: CatalogProduct) => {
+    const confirmed = window.confirm(
+      `¿Eliminar "${product.name}" del catálogo? Los movimientos de caja ya registrados se conservarán.`
+    )
+    if (!confirmed) return
+
+    const { error: deleteErr } = await supabase
+      .from('products')
+      .delete()
+      .eq('id', product.id)
+
+    if (deleteErr) {
+      alert(`Error al eliminar en Supabase: ${deleteErr.message}`)
+      return
     }
-    if (editingId) {
-      updateProduct(editingId, product)
-    } else {
-      addProduct(product)
-    }
-    resetForm()
+
+    deleteProduct(product.id)
+    if (editingId === product.id) resetForm()
   }
 
   const startEditing = (product: CatalogProduct) => {
@@ -103,18 +192,6 @@ export default function InventarioPage() {
         : [...current.sections, section],
     }))
   }
-
-  const handleDeleteProduct = (product: CatalogProduct) => {
-    const confirmed = window.confirm(
-      `¿Eliminar "${product.name}" del catálogo? Los movimientos de caja ya registrados se conservarán.`,
-    )
-    if (confirmed) {
-      deleteProduct(product.id)
-      if (editingId === product.id) resetForm()
-    }
-  }
-
-  const shownProducts = products
 
   return (
     <main className="min-h-screen bg-[#FAFAFA] p-4 text-stone-800 md:p-8">
@@ -149,7 +226,7 @@ export default function InventarioPage() {
             <div className="mb-5 flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-bold">{editingId ? 'Editar producto' : 'Agregar producto'}</h2>
-                <p className="mt-1 text-xs text-stone-500">Los cambios se reflejan en los módulos que lo venden.</p>
+                <p className="mt-1 text-xs text-stone-500">Los cambios se guardan directamente en Supabase.</p>
               </div>
               {editingId ? <button type="button" onClick={resetForm} className="rounded-lg p-2 text-stone-500 hover:bg-stone-100" aria-label="Cancelar edición"><X className="h-4 w-4" /></button> : <PackagePlus className="h-5 w-5 text-[#6D28D9]" />}
             </div>
@@ -160,7 +237,6 @@ export default function InventarioPage() {
               </label>
               <label className="block text-sm font-medium">Categoría
                 <input required value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} className="mt-1 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm" placeholder="Ej. Menú del día, Bebidas, Gustos de helado" />
-                <span className="mt-1 block text-xs font-normal text-stone-500">En Bar usá “Menú del día” o “Bebidas” para ordenar la carta. Para vender helado por bocha o kilo, usá “Gustos de helado” y unidad “g”.</span>
               </label>
               <div className="grid grid-cols-2 gap-3">
                 <label className="block text-sm font-medium">Precio de venta
@@ -198,9 +274,9 @@ export default function InventarioPage() {
             </div>
 
             {error && <p role="alert" className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-            <button type="submit" className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#6D28D9] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#5B21B6]">
+            <button type="submit" disabled={loading} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#6D28D9] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#5B21B6] disabled:opacity-50">
               {editingId ? <Save className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-              {editingId ? 'Guardar cambios' : 'Agregar al catálogo'}
+              {loading ? 'Guardando en Supabase...' : editingId ? 'Guardar cambios' : 'Agregar al catálogo'}
             </button>
           </form>
 
@@ -210,7 +286,7 @@ export default function InventarioPage() {
               <p className="mt-1 text-xs text-stone-500">Almacén y los sectores seleccionados consultan estas mismas existencias.</p>
             </div>
             <div className="space-y-3">
-              {shownProducts.map((product) => (
+              {products.map((product) => (
                 <article key={product.id} className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
@@ -226,7 +302,7 @@ export default function InventarioPage() {
                       <button onClick={() => startEditing(product)} className="flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-semibold hover:bg-stone-100">
                         <Edit3 className="h-3.5 w-3.5" /> Editar
                       </button>
-                      <button onClick={() => updateProduct(product.id, { active: !product.active })} className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-semibold hover:bg-stone-100">
+                      <button onClick={() => handleQuickUpdate(product.id, { active: !product.active })} className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-semibold hover:bg-stone-100">
                         {product.active ? 'Desactivar' : 'Activar'}
                       </button>
                       <button onClick={() => handleDeleteProduct(product)} className="flex items-center gap-1.5 rounded-xl border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50">
@@ -239,13 +315,13 @@ export default function InventarioPage() {
                       Stock: {product.stock.toLocaleString('es-AR')} {product.unit}
                     </p>
                     <div className="flex gap-2">
-                      <button onClick={() => updateProduct(product.id, { stock: Math.max(0, product.stock - 1) })} className="rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-sm font-bold" aria-label={`Quitar una unidad de ${product.name}`}>−</button>
-                      <button onClick={() => updateProduct(product.id, { stock: product.stock + 1 })} className="flex items-center gap-1 rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-sm font-bold" aria-label={`Agregar una unidad de ${product.name}`}><Check className="h-3.5 w-3.5" />+1</button>
+                      <button onClick={() => handleQuickUpdate(product.id, { stock: Math.max(0, product.stock - 1) })} className="rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-sm font-bold" aria-label={`Quitar una unidad de ${product.name}`}>−</button>
+                      <button onClick={() => handleQuickUpdate(product.id, { stock: product.stock + 1 })} className="flex items-center gap-1 rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-sm font-bold" aria-label={`Agregar una unidad de ${product.name}`}><Check className="h-3.5 w-3.5" />+1</button>
                     </div>
                   </div>
                 </article>
               ))}
-              {shownProducts.length === 0 && <p className="rounded-xl bg-stone-50 p-5 text-center text-sm text-stone-500">Todavía no hay productos activos en el catálogo.</p>}
+              {products.length === 0 && <p className="rounded-xl bg-stone-50 p-5 text-center text-sm text-stone-500">Todavía no hay productos activos en el catálogo.</p>}
             </div>
           </section>
         </div>
