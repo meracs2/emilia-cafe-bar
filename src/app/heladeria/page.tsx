@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { ArrowLeft, Plus, IceCream, Trash2, Palette, ChevronDown, DollarSign, Package, Sparkles } from 'lucide-react'
 import Link from 'next/link'
-import { countSaleTickets, useSalesStore } from '@/store/salesStore'
+import { countSaleTickets, useSalesStore, type CatalogProduct } from '@/store/salesStore'
 import { useShallow } from 'zustand/react/shallow'
 import SalesCheckout, { type SaleProductOption } from '@/app/components/SalesCheckout'
+import { createClient } from '@/lib/supabase/client'
 
 type ThemeMode = 'minimal-light' | 'minimal-dark' | 'normal-light' | 'normal-dark'
 
@@ -20,15 +21,35 @@ export default function HeladeriaPage() {
   const [theme, setTheme] = useState<ThemeMode>('normal-light')
   const [isThemeOpen, setIsThemeOpen] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [productCatalog, setProductCatalog] = useState<CatalogProduct[]>([])
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  const productCatalog = useSalesStore(useShallow((state) =>
-    state.products.filter((product) => product.active && product.sections.includes('heladeria')),
-  ))
+  const supabase = createClient()
+
   const sales = useSalesStore(useShallow((state) => state.getSectionSales('heladeria')))
   const iceCreamPrices = useSalesStore(useShallow((state) => state.iceCreamPrices))
   const updateIceCreamPrice = useSalesStore((state) => state.updateIceCreamPrice)
   const removeSale = useSalesStore((state) => state.removeSale)
+
+  // Cargar catálogo directamente de Supabase
+  useEffect(() => {
+    async function fetchProducts() {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('active', true)
+        .contains('sections', ['heladeria'])
+        .order('name', { ascending: true })
+
+      if (!error && data) {
+        setProductCatalog(data)
+      } else if (error) {
+        console.error('Error al cargar heladeria desde Supabase:', error.message)
+      }
+    }
+
+    fetchProducts()
+  }, [])
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('emilia_theme') as ThemeMode | null

@@ -1,9 +1,52 @@
 'use client'
 
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Banknote, CreditCard, DollarSign, PiggyBank, TrendingUp, Wallet } from 'lucide-react'
-import { useSalesStore, type PaymentMethod, type SalesSection } from '@/store/salesStore'
-import { useShallow } from 'zustand/react/shallow'
+import {
+  ArrowLeft,
+  Banknote,
+  CreditCard,
+  DollarSign,
+  PiggyBank,
+  TrendingUp,
+  Wallet,
+} from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+
+export type SalesSection =
+  | 'cafeteria'
+  | 'heladeria'
+  | 'bar'
+  | 'inventario'
+  | 'mesas'
+  | 'almacen'
+  | 'delivery'
+
+export type PaymentMethod =
+  | 'Efectivo'
+  | 'Tarjeta'
+  | 'Débito'
+  | 'Transferencia'
+  | 'Mercado Pago'
+
+export interface PaymentAllocation {
+  method: string
+  amount: number
+}
+
+export interface Sale {
+  id: string
+  item: string
+  quantity: number
+  total: number
+  section: SalesSection
+  created_at?: string
+  createdAt?: string
+  payment_method?: string
+  paymentMethod?: string
+  payment_allocations?: PaymentAllocation[]
+  paymentAllocations?: PaymentAllocation[]
+}
 
 const sectionLabels: Record<SalesSection, string> = {
   cafeteria: 'Cafetería',
@@ -24,9 +67,71 @@ const paymentIcons: Record<PaymentMethod, typeof Wallet> = {
 }
 
 export default function CajaPage() {
-  const sales = useSalesStore((state) => state.sales)
-  const totalsBySection = useSalesStore(useShallow((state) => state.getTotalsBySection()))
-  const paymentTotals = useSalesStore(useShallow((state) => state.getPaymentTotals()))
+  const supabase = createClient()
+  const [sales, setSales] = useState<Sale[]>([])
+
+  // 1. CARGAR VENTAS DESDE SUPABASE
+  const loadSales = async () => {
+    const { data, error } = await supabase.from('sales').select('*')
+    if (!error && data) {
+      setSales(data)
+    }
+  }
+
+  useEffect(() => {
+    loadSales()
+  }, [])
+
+  // 2. CALCULAR TOTALES POR SECCIÓN
+  const totalsBySection = useMemo(() => {
+    const totals: Record<SalesSection, number> = {
+      cafeteria: 0,
+      heladeria: 0,
+      bar: 0,
+      inventario: 0,
+      mesas: 0,
+      almacen: 0,
+      delivery: 0,
+    }
+
+    for (const sale of sales) {
+      if (sale.section && sale.section in totals) {
+        totals[sale.section] += Number(sale.total || 0)
+      }
+    }
+
+    return totals
+  }, [sales])
+
+  // 3. CALCULAR TOTALES POR MÉTODO DE PAGO
+  const paymentTotals = useMemo(() => {
+    const totals: Record<PaymentMethod, number> = {
+      Efectivo: 0,
+      Tarjeta: 0,
+      Débito: 0,
+      Transferencia: 0,
+      'Mercado Pago': 0,
+    }
+
+    for (const sale of sales) {
+      const allocations = sale.payment_allocations ?? sale.paymentAllocations
+      if (Array.isArray(allocations) && allocations.length > 0) {
+        for (const alloc of allocations) {
+          const method = alloc.method as PaymentMethod
+          if (method in totals) {
+            totals[method] += Number(alloc.amount || 0)
+          }
+        }
+      } else {
+        const method = (sale.payment_method ?? sale.paymentMethod) as PaymentMethod
+        if (method && method in totals) {
+          totals[method] += Number(sale.total || 0)
+        }
+      }
+    }
+
+    return totals
+  }, [sales])
 
   const totalGeneral = Object.values(totalsBySection).reduce((sum, value) => sum + value, 0)
   const totalPagos = Object.values(paymentTotals).reduce((sum, value) => sum + value, 0)
@@ -36,7 +141,10 @@ export default function CajaPage() {
       <div className="mx-auto max-w-6xl">
         <header className="mb-6 flex items-center justify-between rounded-[28px] border border-stone-200 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-3">
-            <Link href="/" className="rounded-xl bg-[#EAF4DC] p-2.5 text-[#6B8E23] transition hover:bg-[#d8ecbe]">
+            <Link
+              href="/"
+              className="rounded-xl bg-[#EAF4DC] p-2.5 text-[#6B8E23] transition hover:bg-[#d8ecbe]"
+            >
               <ArrowLeft className="h-5 w-5" />
             </Link>
             <div>
@@ -70,10 +178,14 @@ export default function CajaPage() {
           </div>
           <div className="rounded-[24px] border border-stone-200 bg-white p-5">
             <div className="mb-3 flex items-center justify-between">
-              <span className="text-xs font-semibold text-stone-500">Tarjetas crédito y débito</span>
+              <span className="text-xs font-semibold text-stone-500">
+                Tarjetas crédito y débito
+              </span>
               <CreditCard className="h-4 w-4 text-[#6B8E23]" />
             </div>
-            <p className="text-2xl font-black">${(paymentTotals.Tarjeta + paymentTotals.Débito).toLocaleString('es-AR')}</p>
+            <p className="text-2xl font-black">
+              ${(paymentTotals.Tarjeta + paymentTotals.Débito).toLocaleString('es-AR')}
+            </p>
           </div>
         </section>
 
@@ -90,10 +202,15 @@ export default function CajaPage() {
                 const amount = totalsBySection[sectionKey]
 
                 return (
-                  <div key={sectionKey} className="flex items-center justify-between rounded-2xl border border-stone-200 bg-[#FAFAF9] px-4 py-3">
+                  <div
+                    key={sectionKey}
+                    className="flex items-center justify-between rounded-2xl border border-stone-200 bg-[#FAFAF9] px-4 py-3"
+                  >
                     <div>
                       <p className="font-semibold">{label}</p>
-                      <p className="text-xs text-stone-500">{sales.filter((sale) => sale.section === sectionKey).length} movimientos</p>
+                      <p className="text-xs text-stone-500">
+                        {sales.filter((sale) => sale.section === sectionKey).length} movimientos
+                      </p>
                     </div>
                     <p className="text-lg font-black">${amount.toLocaleString('es-AR')}</p>
                   </div>
@@ -105,21 +222,28 @@ export default function CajaPage() {
           <div className="rounded-[28px] border border-stone-200 bg-white p-5 shadow-sm">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-bold">Cobros por método</h2>
-              <span className="text-xs text-stone-500">Total {totalPagos.toLocaleString('es-AR')}</span>
+              <span className="text-xs text-stone-500">
+                Total ${totalPagos.toLocaleString('es-AR')}
+              </span>
             </div>
 
             <div className="space-y-3">
               {(Object.keys(paymentTotals) as PaymentMethod[]).map((method) => {
                 const Icon = paymentIcons[method]
                 return (
-                  <div key={method} className="flex items-center justify-between rounded-2xl border border-stone-200 bg-[#FAFAF9] px-4 py-3">
+                  <div
+                    key={method}
+                    className="flex items-center justify-between rounded-2xl border border-stone-200 bg-[#FAFAF9] px-4 py-3"
+                  >
                     <div className="flex items-center gap-3">
                       <div className="rounded-xl bg-[#EAF4DC] p-2 text-[#6B8E23]">
                         <Icon className="h-4 w-4" />
                       </div>
                       <span className="font-medium">{method}</span>
                     </div>
-                    <span className="font-black">${paymentTotals[method].toLocaleString('es-AR')}</span>
+                    <span className="font-black">
+                      ${paymentTotals[method].toLocaleString('es-AR')}
+                    </span>
                   </div>
                 )
               })}

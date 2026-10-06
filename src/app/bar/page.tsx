@@ -3,9 +3,42 @@
 import { useEffect, useRef, useState } from 'react'
 import { ArrowLeft, Plus, Coffee, Trash2, Palette, ChevronDown, DollarSign, Package, Sparkles } from 'lucide-react'
 import Link from 'next/link'
-import { countSaleTickets, useSalesStore } from '@/store/salesStore'
-import { useShallow } from 'zustand/react/shallow'
 import SalesCheckout from '@/app/components/SalesCheckout'
+import { createClient } from '@/lib/supabase/client'
+
+export type SalesSection = 'cafeteria' | 'heladeria' | 'bar' | 'almacen' | 'mesas' | 'delivery'
+
+export interface CatalogProduct {
+  id: string
+  name: string
+  category: string
+  price: number
+  stock: number
+  unit: string
+  sections: SalesSection[]
+  active: boolean
+  offerName?: string | null
+  offerPrice?: number | null
+  isWeightBased?: boolean
+}
+
+export interface PaymentAllocation {
+  method: string
+  amount: number
+}
+
+export interface Sale {
+  id: string
+  productId?: string
+  item: string
+  quantity: number
+  total: number
+  section: SalesSection
+  createdAt?: string
+  created_at?: string
+  paymentMethod?: string
+  paymentAllocations?: PaymentAllocation[]
+}
 
 type ThemeMode = 'minimal-light' | 'minimal-dark' | 'normal-light' | 'normal-dark'
 
@@ -20,16 +53,36 @@ const normalizeCategory = (category: string) =>
   category.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase()
 
 export default function BarPage() {
+  const supabase = createClient()
+
   const [theme, setTheme] = useState<ThemeMode>('normal-light')
   const [isThemeOpen, setIsThemeOpen] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [products, setProducts] = useState<CatalogProduct[]>([])
+  const [sales, setSales] = useState<Sale[]>([])
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  const productCatalog = useSalesStore(useShallow((state) =>
-    state.products.filter((product) => product.active && product.sections.includes('bar')),
-  ))
-  const sales = useSalesStore(useShallow((state) => state.getSectionSales('bar')))
-  const removeSale = useSalesStore((state) => state.removeSale)
+  // 1. CARGAR PRODUCTOS Y VENTAS DESDE SUPABASE
+  const loadData = async () => {
+    const { data: productsData, error: prodErr } = await supabase
+      .from('products')
+      .select('*')
+    if (!prodErr && productsData) {
+      setProducts(productsData)
+    }
+
+    const { data: salesData, error: salesErr } = await supabase
+      .from('sales')
+      .select('*')
+      .eq('section', 'bar')
+    if (!salesErr && salesData) {
+      setSales(salesData)
+    }
+  }
+
+  useEffect(() => {
+    loadData()
+  }, [])
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('emilia_theme') as ThemeMode | null
@@ -47,6 +100,10 @@ export default function BarPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  const productCatalog = products.filter(
+    (product) => product.active && product.sections?.includes('bar')
+  )
+
   const isDark = theme.includes('dark')
 
   const handleThemeChange = (newTheme: ThemeMode) => {
@@ -55,8 +112,27 @@ export default function BarPage() {
     setIsThemeOpen(false)
   }
 
+  // 2. ELIMINAR VENTA DIRECTAMENTE EN SUPABASE
+  const handleRemoveSale = async (id: string) => {
+    const confirmed = window.confirm('¿Deseas eliminar este registro de venta?')
+    if (!confirmed) return
+
+    const { error } = await supabase.from('sales').delete().eq('id', id)
+    if (error) {
+      alert(`Error al eliminar en Supabase: ${error.message}`)
+      return
+    }
+
+    setSales((prev) => prev.filter((sale) => sale.id !== id))
+  }
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false)
+    loadData()
+  }
+
   const totalVentas = sales.reduce((acc, sale) => acc + sale.total, 0)
-  const tickets = countSaleTickets(sales)
+  const tickets = sales.length
   const promedio = tickets > 0 ? totalVentas / tickets : 0
   const ventasPorProducto = sales.reduce<Record<string, number>>((acc, sale) => {
     acc[sale.item] = (acc[sale.item] ?? 0) + sale.quantity
@@ -174,14 +250,14 @@ export default function BarPage() {
                     <div>
                       <p className="font-bold">{sale.item}</p>
                       <p className={`text-xs ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-                        {sale.quantity} unidades · {new Date(sale.createdAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Argentina/Buenos_Aires' })}
+                        {sale.quantity} unidades · {new Date(sale.createdAt || sale.created_at || Date.now()).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Argentina/Buenos_Aires' })}
                       </p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-3">
                     <p className="text-base font-black">${sale.total.toLocaleString('es-AR')}</p>
-                    <button onClick={() => removeSale(sale.id)} className={`rounded-xl p-2 transition ${isDark ? 'bg-stone-800 text-stone-200 hover:bg-stone-700' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}`} aria-label={`Eliminar venta de ${sale.item}`}>
+                    <button onClick={() => handleRemoveSale(sale.id)} className={`rounded-xl p-2 transition ${isDark ? 'bg-stone-800 text-stone-200 hover:bg-stone-700' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}`} aria-label={`Eliminar venta de ${sale.item}`}>
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
@@ -207,26 +283,26 @@ export default function BarPage() {
                   <h3 className={`mb-2 border-b pb-2 text-sm font-bold ${isDark ? 'border-stone-800 text-[#F9D6DE]' : 'border-stone-200 text-[#8C1D40]'}`}>{category.title}</h3>
                   <div className="space-y-3">
                     {category.products.map((product) => {
-                const sold = sales.filter((sale) => sale.productId === product.id).reduce((acc, sale) => acc + sale.quantity, 0)
-                return (
-                  <div key={product.id} className={`rounded-2xl border p-3 ${isDark ? 'border-stone-800 bg-stone-950' : 'border-stone-200 bg-[#FFF8F9]'}`}>
-                    <div className="mb-2 flex items-center justify-between">
-                      <div>
-                        <span className="font-semibold">{product.name}</span>
-                        {product.offerName && <p className="mt-0.5 text-xs font-semibold text-amber-600">{product.offerName}</p>}
-                      </div>
-                      <span className={`text-sm font-bold ${isDark ? 'text-stone-200' : 'text-stone-800'}`}>${(product.offerPrice ?? product.price).toLocaleString('es-AR')}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-xs">
-                      <span className={isDark ? 'text-stone-400' : 'text-stone-500'}>Vendidos</span>
-                      <span className="font-bold">{sold}</span>
-                    </div>
-                    <div className="mt-2 flex items-center justify-between text-xs">
-                      <span className={isDark ? 'text-stone-400' : 'text-stone-500'}>Stock compartido</span>
-                      <span className={`font-bold ${product.stock <= 5 ? 'text-amber-500' : 'text-emerald-500'}`}>{product.stock} {product.unit}</span>
-                    </div>
-                  </div>
-                )
+                      const sold = sales.filter((sale) => sale.productId === product.id).reduce((acc, sale) => acc + sale.quantity, 0)
+                      return (
+                        <div key={product.id} className={`rounded-2xl border p-3 ${isDark ? 'border-stone-800 bg-stone-950' : 'border-stone-200 bg-[#FFF8F9]'}`}>
+                          <div className="mb-2 flex items-center justify-between">
+                            <div>
+                              <span className="font-semibold">{product.name}</span>
+                              {product.offerName && <p className="mt-0.5 text-xs font-semibold text-amber-600">{product.offerName}</p>}
+                            </div>
+                            <span className={`text-sm font-bold ${isDark ? 'text-stone-200' : 'text-stone-800'}`}>${(product.offerPrice ?? product.price).toLocaleString('es-AR')}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className={isDark ? 'text-stone-400' : 'text-stone-500'}>Vendidos</span>
+                            <span className="font-bold">{sold}</span>
+                          </div>
+                          <div className="mt-2 flex items-center justify-between text-xs">
+                            <span className={isDark ? 'text-stone-400' : 'text-stone-500'}>Stock compartido</span>
+                            <span className={`font-bold ${product.stock <= 5 ? 'text-amber-500' : 'text-emerald-500'}`}>{product.stock} {product.unit}</span>
+                          </div>
+                        </div>
+                      )
                     })}
                     {category.products.length === 0 && <p className={`rounded-xl p-3 text-xs ${isDark ? 'bg-stone-950 text-stone-400' : 'bg-stone-50 text-stone-500'}`}>Sin productos en esta categoría.</p>}
                   </div>
@@ -238,7 +314,7 @@ export default function BarPage() {
         </section>
       </div>
 
-      {isModalOpen && <SalesCheckout section="bar" products={productCatalog} isDark={isDark} onClose={() => setIsModalOpen(false)} />}
+      {isModalOpen && <SalesCheckout section="bar" products={productCatalog} isDark={isDark} onClose={handleCloseModal} />}
     </main>
   )
 }

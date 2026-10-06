@@ -1,68 +1,309 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Check, CircleDollarSign, Minus, Plus, Trash2, Users, X } from 'lucide-react'
-import { useSalesStore, tableNames } from '@/store/salesStore'
-import { useShallow } from 'zustand/react/shallow'
 import { initialPaymentSplitPlan, PaymentSplitEditor, resolvePaymentSplit, type PaymentSplitPlan } from '@/app/components/SalesCheckout'
+import { createClient } from '@/lib/supabase/client'
+
+export type SalesSection = 'cafeteria' | 'heladeria' | 'bar' | 'almacen' | 'mesas' | 'delivery'
+
+export interface CatalogProduct {
+  id: string
+  name: string
+  category: string
+  price: number
+  stock: number
+  unit: string
+  sections: SalesSection[]
+  active: boolean
+  offerName?: string | null
+  offerPrice?: number | null
+  isWeightBased?: boolean
+}
+
+export interface PaymentAllocation {
+  method: string
+  amount: number
+}
+
+export interface Sale {
+  id: string
+  productId?: string
+  item: string
+  quantity: number
+  total: number
+  section: SalesSection
+  createdAt?: string
+  created_at?: string
+  paymentMethod?: string
+  paymentAllocations?: PaymentAllocation[]
+}
+
+export interface TableOrderLine {
+  id: string
+  productId: string
+  item: string
+  quantity: number
+  unitPrice: number
+  total: number
+}
+
+export interface TableOrder {
+  tableName: string
+  openedAt?: string
+  lines: TableOrderLine[]
+}
+
+export const tableNames = [
+  'Mesa 1',
+  'Mesa 2',
+  'Mesa 3',
+  'Mesa 4',
+  'Mesa 5',
+  'Mesa 6',
+  'Mesa 7',
+  'Mesa 8',
+  'Mesa 9',
+  'Mesa 10',
+]
 
 export default function MesasPage() {
-  const products = useSalesStore(useShallow((state) =>
-    state.products.filter((product) => product.active && product.sections.includes('mesas')),
-  ))
-  const tableOrders = useSalesStore((state) => state.tableOrders)
-  const sales = useSalesStore(useShallow((state) => state.getSectionSales('mesas')))
-  const addTableOrderItem = useSalesStore((state) => state.addTableOrderItem)
-  const updateTableOrderItemQuantity = useSalesStore((state) => state.updateTableOrderItemQuantity)
-  const removeTableOrderItem = useSalesStore((state) => state.removeTableOrderItem)
-  const cancelTableOrder = useSalesStore((state) => state.cancelTableOrder)
-  const closeTableOrder = useSalesStore((state) => state.closeTableOrder)
+  const supabase = createClient()
+
+  const [products, setProducts] = useState<CatalogProduct[]>([])
+  const [sales, setSales] = useState<Sale[]>([])
+  const [tableOrders, setTableOrders] = useState<Record<string, TableOrder>>(() => {
+    const initial: Record<string, TableOrder> = {}
+    tableNames.forEach((name) => {
+      initial[name] = { tableName: name, lines: [] }
+    })
+    return initial
+  })
 
   const [selectedTable, setSelectedTable] = useState<string | null>(null)
   const [selectedProductId, setSelectedProductId] = useState('')
   const [quantity, setQuantity] = useState('1')
   const [paymentPlan, setPaymentPlan] = useState<PaymentSplitPlan>(initialPaymentSplitPlan)
   const [error, setError] = useState('')
-  const activeTables = tableNames.filter((tableName) => (tableOrders[tableName]?.lines.length ?? 0) > 0).length
-  const totalOpen = tableNames.reduce((sum, tableName) =>
-    sum + (tableOrders[tableName]?.lines.reduce((lineSum, line) => lineSum + line.total, 0) ?? 0), 0)
+
+  // 1. CARGAR PRODUCTOS Y VENTAS CERRADAS DESDE SUPABASE
+  const loadData = async () => {
+    const { data: productsData, error: prodErr } = await supabase
+      .from('products')
+      .select('*')
+    if (!prodErr && productsData) {
+      setProducts(productsData)
+    }
+
+    const { data: salesData, error: salesErr } = await supabase
+      .from('sales')
+      .select('*')
+      .eq('section', 'mesas')
+    if (!salesErr && salesData) {
+      setSales(salesData)
+    }
+  }
+
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  const productCatalog = products.filter(
+    (product) => product.active && product.sections?.includes('mesas'),
+  )
+
+  const activeTables = tableNames.filter(
+    (tableName) => (tableOrders[tableName]?.lines.length ?? 0) > 0,
+  ).length
+
+  const totalOpen = tableNames.reduce(
+    (sum, tableName) =>
+      sum + (tableOrders[tableName]?.lines.reduce((lineSum, line) => lineSum + line.total, 0) ?? 0),
+    0,
+  )
+
   const closedSalesTotal = sales.reduce((sum, sale) => sum + sale.total, 0)
+
   const currentOrder = selectedTable ? tableOrders[selectedTable] : null
   const currentTotal = currentOrder?.lines.reduce((sum, line) => sum + line.total, 0) ?? 0
-  const selectedProduct = products.find((product) => product.id === selectedProductId) ?? products[0]
+  const selectedProduct =
+    productCatalog.find((product) => product.id === selectedProductId) ?? productCatalog[0]
 
+  // 2. AGREGAR ITEM A LA COMANDA DE LA MESA
   const handleAddItem = () => {
     if (!selectedTable || !selectedProduct) return
-    const result = addTableOrderItem(selectedTable, selectedProduct.id, Number(quantity))
-    if (!result.success) {
-      setError(result.error)
+    const qty = Number(quantity)
+    if (isNaN(qty) || qty <= 0) {
+      setError('Ingresá una cantidad válida.')
       return
     }
+
+    if (qty > selectedProduct.stock) {
+      setError(`Stock insuficiente (disponible: ${selectedProduct.stock} ${selectedProduct.unit})`)
+      return
+    }
+
+    const unitPrice = selectedProduct.offerPrice ?? selectedProduct.price
+
+    setTableOrders((prev) => {
+      const existingOrder = prev[selectedTable] ?? {
+        tableName: selectedTable,
+        lines: [],
+        openedAt: new Date().toISOString(),
+      }
+      const existingLineIndex = existingOrder.lines.findIndex(
+        (l) => l.productId === selectedProduct.id,
+      )
+
+      let updatedLines = [...existingOrder.lines]
+
+      if (existingLineIndex >= 0) {
+        const existingLine = updatedLines[existingLineIndex]
+        const newQty = existingLine.quantity + qty
+        if (newQty > selectedProduct.stock) {
+          setError(`Stock insuficiente para agregar esa cantidad (disponible: ${selectedProduct.stock})`)
+          return prev
+        }
+        updatedLines[existingLineIndex] = {
+          ...existingLine,
+          quantity: newQty,
+          total: newQty * unitPrice,
+        }
+      } else {
+        updatedLines.push({
+          id: crypto.randomUUID(),
+          productId: selectedProduct.id,
+          item: selectedProduct.name,
+          quantity: qty,
+          unitPrice,
+          total: qty * unitPrice,
+        })
+      }
+
+      return {
+        ...prev,
+        [selectedTable]: {
+          ...existingOrder,
+          openedAt: existingOrder.openedAt || new Date().toISOString(),
+          lines: updatedLines,
+        },
+      }
+    })
+
     setError('')
     setQuantity('1')
   }
 
-  const handleCloseOrder = () => {
-    if (!selectedTable) return
+  // 3. ACTUALIZAR CANTIDAD DE UN ITEM EN LA COMANDA
+  const handleUpdateQuantity = (tableName: string, lineId: string, newQty: number) => {
+    const prodLine = tableOrders[tableName]?.lines.find((l) => l.id === lineId)
+    if (!prodLine) return
+
+    const product = products.find((p) => p.id === prodLine.productId)
+    if (product && newQty > product.stock) {
+      setError(`Stock insuficiente (disponible: ${product.stock})`)
+      return
+    }
+
+    setTableOrders((prev) => {
+      const order = prev[tableName]
+      if (!order) return prev
+
+      const updatedLines = order.lines.map((line) => {
+        if (line.id === lineId) {
+          return {
+            ...line,
+            quantity: newQty,
+            total: newQty * line.unitPrice,
+          }
+        }
+        return line
+      })
+
+      return {
+        ...prev,
+        [tableName]: { ...order, lines: updatedLines },
+      }
+    })
+    setError('')
+  }
+
+  // 4. QUITAR UN ITEM DE LA COMANDA
+  const handleRemoveItem = (tableName: string, lineId: string) => {
+    setTableOrders((prev) => {
+      const order = prev[tableName]
+      if (!order) return prev
+      return {
+        ...prev,
+        [tableName]: {
+          ...order,
+          lines: order.lines.filter((l) => l.id !== lineId),
+        },
+      }
+    })
+  }
+
+  // 5. COBRAR Y CERRAR LA COMANDA EN SUPABASE
+  const handleCloseOrder = async () => {
+    if (!selectedTable || !currentOrder || currentOrder.lines.length === 0) return
     const paymentAllocations = resolvePaymentSplit(currentTotal, paymentPlan)
     if (!paymentAllocations?.length) {
       setError('Revisá los importes distribuidos entre los medios de pago.')
       return
     }
-    const result = closeTableOrder(selectedTable, paymentAllocations)
-    if (!result.success) {
-      setError(result.error)
+
+    const salesToInsert = currentOrder.lines.map((line) => ({
+      item: `${selectedTable} · ${line.item}`,
+      quantity: line.quantity,
+      total: line.total,
+      section: 'mesas',
+      product_id: line.productId,
+      payment_method: paymentAllocations.map((p) => p.method).join(', '),
+      payment_allocations: paymentAllocations,
+    }))
+
+    const { error: insertError } = await supabase.from('sales').insert(salesToInsert)
+
+    if (insertError) {
+      setError(`Error al guardar la venta: ${insertError.message}`)
       return
     }
+
+    // Descontar stock de productos en Supabase
+    for (const line of currentOrder.lines) {
+      const prod = products.find((p) => p.id === line.productId)
+      if (prod) {
+        const newStock = Math.max(0, prod.stock - line.quantity)
+        await supabase.from('products').update({ stock: newStock }).eq('id', line.productId)
+      }
+    }
+
+    await loadData()
+
+    setTableOrders((prev) => ({
+      ...prev,
+      [selectedTable]: { tableName: selectedTable, lines: [], openedAt: undefined },
+    }))
+
     setError('')
     setPaymentPlan(initialPaymentSplitPlan())
     setSelectedTable(null)
   }
 
+  // 6. CANCELAR COMANDA Y LIMPIAR
   const handleCancelOrder = () => {
-    if (!selectedTable || !window.confirm(`¿Cancelar la comanda de ${selectedTable}? El stock reservado se devolverá al inventario.`)) return
-    cancelTableOrder(selectedTable)
+    if (
+      !selectedTable ||
+      !window.confirm(
+        `¿Cancelar la comanda de ${selectedTable}? El stock reservado se devolverá al inventario.`,
+      )
+    )
+      return
+    setTableOrders((prev) => ({
+      ...prev,
+      [selectedTable]: { tableName: selectedTable, lines: [], openedAt: undefined },
+    }))
     setError('')
     setSelectedTable(null)
   }
@@ -113,7 +354,7 @@ export default function MesasPage() {
                   type="button"
                   onClick={() => {
                     setSelectedTable(tableName)
-                    setSelectedProductId(products[0]?.id ?? '')
+                    setSelectedProductId(productCatalog[0]?.id ?? '')
                     setError('')
                   }}
                   className={`rounded-2xl border p-4 text-left transition ${
@@ -165,10 +406,9 @@ export default function MesasPage() {
                         <button
                           type="button"
                           onClick={() => {
-                            if (line.quantity <= 1) removeTableOrderItem(selectedTable, line.id)
+                            if (line.quantity <= 1) handleRemoveItem(selectedTable, line.id)
                             else {
-                              const result = updateTableOrderItemQuantity(selectedTable, line.id, line.quantity - 1)
-                              if (!result.success) setError(result.error)
+                              handleUpdateQuantity(selectedTable, line.id, line.quantity - 1)
                             }
                           }}
                           className="rounded-lg border border-stone-200 bg-white p-2 hover:bg-stone-100"
@@ -180,8 +420,7 @@ export default function MesasPage() {
                         <button
                           type="button"
                           onClick={() => {
-                            const result = updateTableOrderItemQuantity(selectedTable, line.id, line.quantity + 1)
-                            if (!result.success) setError(result.error)
+                            handleUpdateQuantity(selectedTable, line.id, line.quantity + 1)
                           }}
                           className="rounded-lg border border-stone-200 bg-white p-2 hover:bg-stone-100"
                           aria-label={`Agregar una unidad de ${line.item}`}
@@ -189,7 +428,7 @@ export default function MesasPage() {
                           <Plus className="h-4 w-4" />
                         </button>
                         <span className="min-w-24 text-right font-black">${line.total.toLocaleString('es-AR')}</span>
-                        <button type="button" onClick={() => removeTableOrderItem(selectedTable, line.id)} className="rounded-lg p-2 text-red-600 hover:bg-red-50" aria-label={`Quitar ${line.item} de la comanda`}>
+                        <button type="button" onClick={() => handleRemoveItem(selectedTable, line.id)} className="rounded-lg p-2 text-red-600 hover:bg-red-50" aria-label={`Quitar ${line.item} de la comanda`}>
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
@@ -223,11 +462,11 @@ export default function MesasPage() {
             <div className="rounded-[28px] border border-stone-200 bg-white p-5 shadow-sm">
               <h2 className="text-lg font-bold">Agregar pedido</h2>
               <p className="mb-4 mt-1 text-xs text-stone-500">El producto se reserva del stock mientras la comanda está abierta.</p>
-              {products.length > 0 ? (
+              {productCatalog.length > 0 ? (
                 <div className="space-y-4">
                   <label className="block text-sm font-medium">Producto
                     <select value={selectedProduct?.id ?? ''} onChange={(event) => setSelectedProductId(event.target.value)} className="mt-1 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm">
-                      {products.map((product) => (
+                      {productCatalog.map((product) => (
                         <option key={product.id} value={product.id} disabled={product.stock <= 0}>
                           {product.name} · ${(product.offerPrice ?? product.price).toLocaleString('es-AR')} · stock {product.stock} {product.unit}
                         </option>

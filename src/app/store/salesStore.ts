@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 
 export type SalesSection = 'cafeteria' | 'heladeria' | 'bar' | 'almacen' | 'mesas' | 'delivery'
 
@@ -23,25 +24,33 @@ export interface SalesState {
   deleteProduct: (id: string) => void
 }
 
-export const useSalesStore = create<SalesState>((set) => ({
-  products: [],
+export const useSalesStore = create<SalesState>()(
+  persist(
+    (set) => ({
+      products: [],
 
-  setProducts: (products) => set({ products }),
+      setProducts: (products) => set({ products }),
 
-  addProduct: (product) =>
-    set((state) => ({
-      products: [...state.products, product],
-    })),
+      addProduct: (product) =>
+        set((state) => ({
+          products: [...state.products, product],
+        })),
 
-  updateProduct: (id, patch) =>
-    set((state) => ({
-      products: state.products.map((item) =>
-        item.id === id ? { ...item, ...patch } : item
-      ),
-    })),
+      updateProduct: (id, patch) =>
+        set((state) => ({
+          products: state.products.map((item) =>
+            item.id === id ? { ...item, ...patch } : item
+          ),
+        })),
 
-  deleteProduct: (id) =>
-    set((state) => ({
-      products: state.products.filter((item) => item.id !== id),
-    })),
-}))
+      deleteProduct: (id) =>
+        set((state) => ({
+          products: state.products.filter((item) => item.id !== id),
+        })),
+    }),
+    {
+      name: 'sales-store',
+      skipHydration: true,
+    }
+  )
+)

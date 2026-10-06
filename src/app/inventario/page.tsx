@@ -2,9 +2,24 @@
 
 import { useState, useEffect, type FormEvent } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Check, Edit3, PackagePlus, Plus, Save, Trash2, X } from 'lucide-react'
-import { useSalesStore, type CatalogProduct, type SalesSection } from '@/app/store/salesStore'
-import { createClient } from '@/lib/supabase/client' // Ajustá esta ruta al cliente de Supabase de tu proyecto
+import { ArrowLeft, Check, Edit3, PackagePlus, Plus, Save, Scale, Trash2, X } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+
+export type SalesSection = 'cafeteria' | 'heladeria' | 'bar' | 'almacen' | 'mesas' | 'delivery'
+
+export interface CatalogProduct {
+  id: string
+  name: string
+  category: string
+  price: number
+  stock: number
+  unit: string
+  sections: SalesSection[]
+  active: boolean
+  offerName?: string | null
+  offerPrice?: number | null
+  isWeightBased?: boolean
+}
 
 const sellSections: { id: SalesSection; label: string }[] = [
   { id: 'cafeteria', label: 'Cafetería' },
@@ -27,23 +42,20 @@ const emptyForm: ProductForm = {
   active: true,
   offerName: '',
   offerPrice: undefined,
+  isWeightBased: false,
 }
 
 export default function InventarioPage() {
   const supabase = createClient()
-  
-  const products = useSalesStore((state) => state.products)
-  const setProducts = useSalesStore((state) => state.setProducts) // Asegúrate de tener una acción para reemplazar la lista completa
-  const addProduct = useSalesStore((state) => state.addProduct)
-  const updateProduct = useSalesStore((state) => state.updateProduct)
-  const deleteProduct = useSalesStore((state) => state.deleteProduct)
 
+  const [products, setProducts] = useState<CatalogProduct[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<ProductForm>(emptyForm)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [customAddAmount, setCustomAddAmount] = useState<{ [key: string]: number }>({})
 
-  // 1. CARGAR PRODUCTOS DESDE SUPABASE AL ENTRAR A LA PÁGINA
+  // 1. CARGAR PRODUCTOS DESDE SUPABASE
   useEffect(() => {
     async function loadProducts() {
       const { data, error } = await supabase.from('products').select('*')
@@ -57,7 +69,7 @@ export default function InventarioPage() {
   }, [])
 
   const stockTotal = products.reduce((sum, product) => sum + product.stock, 0)
-  const lowStockCount = products.filter((product) => product.active && product.stock <= 5).length
+  const lowStockCount = products.filter((product) => product.active && product.stock <= (product.isWeightBased ? 1 : 5)).length
 
   const resetForm = () => {
     setForm(emptyForm)
@@ -65,7 +77,7 @@ export default function InventarioPage() {
     setError('')
   }
 
-  // 2. GUARDAR / EDITAR PRODUCTO EN SUPABASE
+  // 2. GUARDAR / EDITAR PRODUCTO
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const name = form.name.trim()
@@ -93,10 +105,10 @@ export default function InventarioPage() {
       active: form.active,
       offerName: form.offerName?.trim() || null,
       offerPrice: form.offerName?.trim() ? form.offerPrice : null,
+      isWeightBased: form.isWeightBased,
     }
 
     if (editingId) {
-      // Actualizar en Supabase
       const { data, error: updateErr } = await supabase
         .from('products')
         .update(productPayload)
@@ -110,9 +122,10 @@ export default function InventarioPage() {
         return
       }
 
-      updateProduct(editingId, data)
+      setProducts((prev) =>
+        prev.map((product) => (product.id === editingId ? data : product))
+      )
     } else {
-      // Insertar nuevo en Supabase
       const { data, error: insertErr } = await supabase
         .from('products')
         .insert([productPayload])
@@ -125,14 +138,14 @@ export default function InventarioPage() {
         return
       }
 
-      addProduct(data)
+      setProducts((prev) => [...prev, data])
     }
 
     setLoading(false)
     resetForm()
   }
 
-  // 3. ACTUALIZACIONES RÁPIDAS (STOCK Y ESTADO ACTIVO/INACTIVO)
+  // 3. ACTUALIZACIONES RÁPIDAS DE STOCK
   const handleQuickUpdate = async (id: string, patch: Partial<CatalogProduct>) => {
     const { error: err } = await supabase
       .from('products')
@@ -144,7 +157,14 @@ export default function InventarioPage() {
       return
     }
 
-    updateProduct(id, patch)
+    setProducts((prev) =>
+      prev.map((product) => (product.id === id ? { ...product, ...patch } : product))
+    )
+  }
+
+  const handleAdjustStock = (product: CatalogProduct, delta: number) => {
+    const newStock = Math.max(0, Number((product.stock + delta).toFixed(3)))
+    handleQuickUpdate(product.id, { stock: newStock })
   }
 
   // 4. ELIMINAR DE SUPABASE
@@ -164,7 +184,7 @@ export default function InventarioPage() {
       return
     }
 
-    deleteProduct(product.id)
+    setProducts((prev) => prev.filter((p) => p.id !== product.id))
     if (editingId === product.id) resetForm()
   }
 
@@ -180,6 +200,7 @@ export default function InventarioPage() {
       active: product.active,
       offerName: product.offerName ?? '',
       offerPrice: product.offerPrice,
+      isWeightBased: product.isWeightBased ?? false,
     })
     setError('')
   }
@@ -202,7 +223,7 @@ export default function InventarioPage() {
           </Link>
           <div>
             <h1 className="text-lg font-bold tracking-tight">Inventario y catálogo</h1>
-            <p className="text-xs text-stone-500">Administrá productos, precios, ofertas y disponibilidad de cada sector</p>
+            <p className="text-xs text-stone-500">Administrá productos, precios, venta por peso / unidad y stock</p>
           </div>
         </header>
 
@@ -212,11 +233,11 @@ export default function InventarioPage() {
             <p className="mt-2 text-2xl font-black">{products.filter((product) => product.active).length}</p>
           </div>
           <div className="rounded-2xl border border-stone-200 bg-white p-5">
-            <p className="text-xs font-semibold text-stone-500">Unidades / cantidad total</p>
-            <p className="mt-2 text-2xl font-black">{stockTotal.toLocaleString('es-AR')}</p>
+            <p className="text-xs font-semibold text-stone-500">Stock total acumulado</p>
+            <p className="mt-2 text-2xl font-black">{stockTotal.toLocaleString('es-AR', { maximumFractionDigits: 3 })}</p>
           </div>
           <div className="rounded-2xl border border-stone-200 bg-white p-5">
-            <p className="text-xs font-semibold text-stone-500">Productos con stock bajo (5 o menos)</p>
+            <p className="text-xs font-semibold text-stone-500">Productos con stock bajo</p>
             <p className="mt-2 text-2xl font-black">{lowStockCount}</p>
           </div>
         </section>
@@ -228,26 +249,68 @@ export default function InventarioPage() {
                 <h2 className="text-lg font-bold">{editingId ? 'Editar producto' : 'Agregar producto'}</h2>
                 <p className="mt-1 text-xs text-stone-500">Los cambios se guardan directamente en Supabase.</p>
               </div>
-              {editingId ? <button type="button" onClick={resetForm} className="rounded-lg p-2 text-stone-500 hover:bg-stone-100" aria-label="Cancelar edición"><X className="h-4 w-4" /></button> : <PackagePlus className="h-5 w-5 text-[#6D28D9]" />}
+              {editingId ? (
+                <button type="button" onClick={resetForm} className="rounded-lg p-2 text-stone-500 hover:bg-stone-100" aria-label="Cancelar edición">
+                  <X className="h-4 w-4" />
+                </button>
+              ) : (
+                <PackagePlus className="h-5 w-5 text-[#6D28D9]" />
+              )}
             </div>
 
             <div className="space-y-3">
-              <label className="block text-sm font-medium">Producto / gusto
-                <input required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} className="mt-1 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm" placeholder="Ej. Sandwich de jamón y queso" />
+              <label className="block text-sm font-medium">
+                Producto / gusto
+                <input required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} className="mt-1 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm" placeholder="Ej. Queso Tybo / Dulce de leche" />
               </label>
-              <label className="block text-sm font-medium">Categoría
-                <input required value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} className="mt-1 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm" placeholder="Ej. Menú del día, Bebidas, Gustos de helado" />
+
+              <label className="block text-sm font-medium">
+                Categoría
+                <input required value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} className="mt-1 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm" placeholder="Ej. Fiambrería, Helados, Bebidas" />
               </label>
-              <div className="grid grid-cols-2 gap-3">
-                <label className="block text-sm font-medium">Precio de venta
-                  <input type="number" min="0" step="0.01" value={form.price} onChange={(event) => setForm({ ...form, price: Number(event.target.value) })} className="mt-1 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm" />
-                </label>
-                <label className="block text-sm font-medium">Stock inicial
-                  <input type="number" min="0" step="0.01" value={form.stock} onChange={(event) => setForm({ ...form, stock: Number(event.target.value) })} className="mt-1 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm" />
+
+              {/* TIPO DE VENTA: UNIDAD O PESO */}
+              <div className="rounded-xl border border-purple-200 bg-purple-50/50 p-3">
+                <label className="flex items-center gap-2.5 text-sm font-semibold text-purple-950 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.isWeightBased}
+                    onChange={(event) => {
+                      const isWeight = event.target.checked
+                      setForm({
+                        ...form,
+                        isWeightBased: isWeight,
+                        unit: isWeight ? 'kg' : 'unidad',
+                      })
+                    }}
+                    className="h-4 w-4 rounded border-purple-300 text-[#6D28D9] focus:ring-[#6D28D9]"
+                  />
+                  <Scale className="h-4 w-4 text-[#6D28D9]" />
+                  Producto vendido por peso (Kilo / Gramo)
                 </label>
               </div>
-              <label className="block text-sm font-medium">Unidad de stock
-                <input required value={form.unit} onChange={(event) => setForm({ ...form, unit: event.target.value })} className="mt-1 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm" placeholder="unidad, kg, g, litro…" />
+
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block text-sm font-medium">
+                  {form.isWeightBased ? 'Precio por Kg / Gramo' : 'Precio de venta'}
+                  <input type="number" min="0" step="0.01" value={form.price} onChange={(event) => setForm({ ...form, price: Number(event.target.value) })} className="mt-1 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm" />
+                </label>
+                <label className="block text-sm font-medium">
+                  {form.isWeightBased ? 'Stock inicial (ej. 2.50)' : 'Stock inicial'}
+                  <input type="number" min="0" step={form.isWeightBased ? '0.001' : '1'} value={form.stock} onChange={(event) => setForm({ ...form, stock: Number(event.target.value) })} className="mt-1 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm" />
+                </label>
+              </div>
+
+              <label className="block text-sm font-medium">
+                Unidad de medida
+                {form.isWeightBased ? (
+                  <select value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} className="mt-1 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm">
+                    <option value="kg">Kilogramo (kg)</option>
+                    <option value="g">Gramo (g)</option>
+                  </select>
+                ) : (
+                  <input required value={form.unit} onChange={(event) => setForm({ ...form, unit: event.target.value })} className="mt-1 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm" placeholder="unidad, pack, lata…" />
+                )}
               </label>
 
               <fieldset>
@@ -261,6 +324,7 @@ export default function InventarioPage() {
                   ))}
                 </div>
               </fieldset>
+
               <label className="flex items-center gap-2 text-sm font-medium">
                 <input type="checkbox" checked={form.active} onChange={(event) => setForm({ ...form, active: event.target.checked })} />
                 Producto activo y disponible para venta
@@ -268,7 +332,7 @@ export default function InventarioPage() {
 
               <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3">
                 <p className="mb-2 text-sm font-semibold">Oferta opcional</p>
-                <input value={form.offerName ?? ''} onChange={(event) => setForm({ ...form, offerName: event.target.value })} className="mb-2 w-full rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm" placeholder="Ej. Promo desayuno" />
+                <input value={form.offerName ?? ''} onChange={(event) => setForm({ ...form, offerName: event.target.value })} className="mb-2 w-full rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm" placeholder="Ej. Promo por kg" />
                 <input type="number" min="0" step="0.01" value={form.offerPrice ?? ''} onChange={(event) => setForm({ ...form, offerPrice: event.target.value === '' ? undefined : Number(event.target.value) })} className="w-full rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm" placeholder="Precio promocional" />
               </div>
             </div>
@@ -286,45 +350,94 @@ export default function InventarioPage() {
               <p className="mt-1 text-xs text-stone-500">Almacén y los sectores seleccionados consultan estas mismas existencias.</p>
             </div>
             <div className="space-y-3">
-              {products.map((product) => (
-                <article key={product.id} className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-bold">{product.name}</h3>
-                        {!product.active && <span className="rounded-full bg-stone-200 px-2 py-0.5 text-[11px] font-semibold text-stone-600">Inactivo</span>}
-                        {product.offerName && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800">{product.offerName}</span>}
+              {products.map((product) => {
+                const isKg = product.isWeightBased && product.unit.toLowerCase() === 'kg'
+                const isGram = product.isWeightBased && product.unit.toLowerCase() === 'g'
+                const amountInput = customAddAmount[product.id] ?? (isKg ? 0.5 : isGram ? 100 : 1)
+
+                return (
+                  <article key={product.id} className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold">{product.name}</h3>
+                          {product.isWeightBased && (
+                            <span className="flex items-center gap-1 rounded-full bg-purple-100 px-2 py-0.5 text-[11px] font-semibold text-purple-800">
+                              <Scale className="h-3 w-3" /> Por peso ({product.unit})
+                            </span>
+                          )}
+                          {!product.active && <span className="rounded-full bg-stone-200 px-2 py-0.5 text-[11px] font-semibold text-stone-600">Inactivo</span>}
+                          {product.offerName && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800">{product.offerName}</span>}
+                        </div>
+                        <p className="text-xs text-stone-500">
+                          {product.category} · ${product.price.toLocaleString('es-AR')}{product.isWeightBased ? ` / ${product.unit}` : ''} · {product.sections.map((id) => sellSections.find((section) => section.id === id)?.label).filter(Boolean).join(', ')}
+                        </p>
+                        {product.offerPrice != null && (
+                          <p className="mt-1 text-xs font-semibold text-amber-800">
+                            Oferta: ${product.offerPrice.toLocaleString('es-AR')}
+                          </p>
+                        )}
                       </div>
-                      <p className="text-xs text-stone-500">{product.category} · ${product.price.toLocaleString('es-AR')} · {product.sections.map((id) => sellSections.find((section) => section.id === id)?.label).filter(Boolean).join(', ')}</p>
-                      {product.offerPrice != null && (
-  <p className="mt-1 text-xs font-semibold text-amber-800">
-    Oferta: ${product.offerPrice.toLocaleString('es-AR')}
-  </p>
-)}
+                      <div className="flex flex-wrap gap-2">
+                        <button onClick={() => startEditing(product)} className="flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-semibold hover:bg-stone-100">
+                          <Edit3 className="h-3.5 w-3.5" /> Editar
+                        </button>
+                        <button onClick={() => handleQuickUpdate(product.id, { active: !product.active })} className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-semibold hover:bg-stone-100">
+                          {product.active ? 'Desactivar' : 'Activar'}
+                        </button>
+                        <button onClick={() => handleDeleteProduct(product)} className="flex items-center gap-1.5 rounded-xl border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50">
+                          <Trash2 className="h-3.5 w-3.5" /> Eliminar
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      <button onClick={() => startEditing(product)} className="flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-semibold hover:bg-stone-100">
-                        <Edit3 className="h-3.5 w-3.5" /> Editar
-                      </button>
-                      <button onClick={() => handleQuickUpdate(product.id, { active: !product.active })} className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-semibold hover:bg-stone-100">
-                        {product.active ? 'Desactivar' : 'Activar'}
-                      </button>
-                      <button onClick={() => handleDeleteProduct(product)} className="flex items-center gap-1.5 rounded-xl border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50">
-                        <Trash2 className="h-3.5 w-3.5" /> Eliminar
-                      </button>
+
+                    <div className="mt-3 flex flex-wrap items-center justify-between border-t border-stone-200 pt-3 gap-2">
+                      <p className={`text-sm font-semibold ${product.stock <= (product.isWeightBased ? 1 : 5) ? 'text-amber-700' : 'text-stone-600'}`}>
+                        Stock: {product.stock.toLocaleString('es-AR', { maximumFractionDigits: 3 })} {product.unit}
+                      </p>
+
+                      {/* CONTROLES RÁPIDOS DE STOCK */}
+                      {product.isWeightBased ? (
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {isKg ? (
+                            <>
+                              <button onClick={() => handleAdjustStock(product, -0.1)} className="rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs font-bold hover:bg-stone-100">-100g</button>
+                              <button onClick={() => handleAdjustStock(product, -0.5)} className="rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs font-bold hover:bg-stone-100">-500g</button>
+                              <button onClick={() => handleAdjustStock(product, 0.25)} className="rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs font-bold hover:bg-stone-100">+250g</button>
+                              <button onClick={() => handleAdjustStock(product, 0.5)} className="rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs font-bold hover:bg-stone-100">+500g</button>
+                              <button onClick={() => handleAdjustStock(product, 1)} className="rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs font-bold hover:bg-stone-100">+1 kg</button>
+                            </>
+                          ) : (
+                            <>
+                              <button onClick={() => handleAdjustStock(product, -100)} className="rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs font-bold hover:bg-stone-100">-100g</button>
+                              <button onClick={() => handleAdjustStock(product, 100)} className="rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs font-bold hover:bg-stone-100">+100g</button>
+                              <button onClick={() => handleAdjustStock(product, 500)} className="rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs font-bold hover:bg-stone-100">+500g</button>
+                            </>
+                          )}
+
+                          <div className="flex items-center gap-1 border-l border-stone-300 pl-2 ml-1">
+                            <input
+                              type="number"
+                              step={isKg ? '0.01' : '1'}
+                              value={amountInput}
+                              onChange={(e) => setCustomAddAmount({ ...customAddAmount, [product.id]: Number(e.target.value) })}
+                              className="w-16 rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs text-center font-bold"
+                            />
+                            <button onClick={() => handleAdjustStock(product, amountInput)} className="rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs font-bold text-emerald-700 hover:bg-emerald-50">
+                              + Sumar
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex gap-2">
+                          <button onClick={() => handleAdjustStock(product, -1)} className="rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-sm font-bold hover:bg-stone-100" aria-label={`Quitar una unidad de ${product.name}`}>−</button>
+                          <button onClick={() => handleAdjustStock(product, 1)} className="flex items-center gap-1 rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-sm font-bold hover:bg-stone-100" aria-label={`Agregar una unidad de ${product.name}`}><Check className="h-3.5 w-3.5" />+1</button>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                  <div className="mt-3 flex items-center justify-between border-t border-stone-200 pt-3">
-                    <p className={`text-sm font-semibold ${product.stock <= 5 ? 'text-amber-700' : 'text-stone-600'}`}>
-                      Stock: {product.stock.toLocaleString('es-AR')} {product.unit}
-                    </p>
-                    <div className="flex gap-2">
-                      <button onClick={() => handleQuickUpdate(product.id, { stock: Math.max(0, product.stock - 1) })} className="rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-sm font-bold" aria-label={`Quitar una unidad de ${product.name}`}>−</button>
-                      <button onClick={() => handleQuickUpdate(product.id, { stock: product.stock + 1 })} className="flex items-center gap-1 rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-sm font-bold" aria-label={`Agregar una unidad de ${product.name}`}><Check className="h-3.5 w-3.5" />+1</button>
-                    </div>
-                  </div>
-                </article>
-              ))}
+                  </article>
+                )
+              })}
               {products.length === 0 && <p className="rounded-xl bg-stone-50 p-5 text-center text-sm text-stone-500">Todavía no hay productos activos en el catálogo.</p>}
             </div>
           </section>

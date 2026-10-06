@@ -3,9 +3,42 @@
 import { useEffect, useRef, useState } from 'react'
 import { ArrowLeft, Bike, ChevronDown, DollarSign, Palette, Plus, Trash2 } from 'lucide-react'
 import Link from 'next/link'
-import { useSalesStore } from '@/store/salesStore'
-import { useShallow } from 'zustand/react/shallow'
 import SalesCheckout from '@/app/components/SalesCheckout'
+import { createClient } from '@/lib/supabase/client'
+
+export type SalesSection = 'cafeteria' | 'heladeria' | 'bar' | 'almacen' | 'mesas' | 'delivery'
+
+export interface CatalogProduct {
+  id: string
+  name: string
+  category: string
+  price: number
+  stock: number
+  unit: string
+  sections: SalesSection[]
+  active: boolean
+  offerName?: string | null
+  offerPrice?: number | null
+  isWeightBased?: boolean
+}
+
+export interface PaymentAllocation {
+  method: string
+  amount: number
+}
+
+export interface Sale {
+  id: string
+  productId?: string
+  item: string
+  quantity: number
+  total: number
+  section: SalesSection
+  createdAt?: string
+  created_at?: string
+  paymentMethod?: string
+  paymentAllocations?: PaymentAllocation[]
+}
 
 type ThemeMode = 'minimal-light' | 'minimal-dark' | 'normal-light' | 'normal-dark'
 type PlatformKey = 'pedidosya' | 'rappi' | 'uber'
@@ -24,18 +57,38 @@ const platformLabels: Record<PlatformKey, string> = {
 }
 
 export default function DeliveryPage() {
+  const supabase = createClient()
+
   const [theme, setTheme] = useState<ThemeMode>('normal-light')
   const [isThemeOpen, setIsThemeOpen] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedPlatform, setSelectedPlatform] = useState<PlatformKey>('pedidosya')
   const [clientName, setClientName] = useState('')
+  const [products, setProducts] = useState<CatalogProduct[]>([])
+  const [sales, setSales] = useState<Sale[]>([])
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  const productCatalog = useSalesStore(useShallow((state) =>
-    state.products.filter((product) => product.active && product.sections.includes('delivery')),
-  ))
-  const sales = useSalesStore(useShallow((state) => state.getSectionSales('delivery')))
-  const removeSale = useSalesStore((state) => state.removeSale)
+  // 1. CARGAR PRODUCTOS Y VENTAS DESDE SUPABASE
+  const loadData = async () => {
+    const { data: productsData, error: prodErr } = await supabase
+      .from('products')
+      .select('*')
+    if (!prodErr && productsData) {
+      setProducts(productsData)
+    }
+
+    const { data: salesData, error: salesErr } = await supabase
+      .from('sales')
+      .select('*')
+      .eq('section', 'delivery')
+    if (!salesErr && salesData) {
+      setSales(salesData)
+    }
+  }
+
+  useEffect(() => {
+    loadData()
+  }, [])
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('emilia_theme') as ThemeMode | null
@@ -52,12 +105,36 @@ export default function DeliveryPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  const productCatalog = products.filter(
+    (product) => product.active && product.sections?.includes('delivery'),
+  )
+
   const isDark = theme.includes('dark')
 
   const handleThemeChange = (newTheme: ThemeMode) => {
     setTheme(newTheme)
     localStorage.setItem('emilia_theme', newTheme)
     setIsThemeOpen(false)
+  }
+
+  // 2. ELIMINAR PEDIDO DIRECTAMENTE EN SUPABASE
+  const handleRemoveSale = async (id: string) => {
+    const confirmed = window.confirm('¿Deseas eliminar este registro de pedido?')
+    if (!confirmed) return
+
+    const { error } = await supabase.from('sales').delete().eq('id', id)
+    if (error) {
+      alert(`Error al eliminar en Supabase: ${error.message}`)
+      return
+    }
+
+    setSales((prev) => prev.filter((sale) => sale.id !== id))
+  }
+
+  const handleCloseModal = () => {
+    setClientName('')
+    setIsModalOpen(false)
+    loadData()
   }
 
   const totalsByPlatform = (['pedidosya', 'rappi', 'uber'] as PlatformKey[]).reduce(
@@ -162,7 +239,7 @@ export default function DeliveryPage() {
 
                 <div className="flex items-center gap-3">
                   <p className="text-base font-black">${sale.total.toLocaleString('es-AR')}</p>
-                  <button onClick={() => removeSale(sale.id)} className={`rounded-xl p-2 transition ${isDark ? 'bg-stone-800 text-stone-200 hover:bg-stone-700' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}`} aria-label={`Eliminar pedido ${sale.item}`}>
+                  <button onClick={() => handleRemoveSale(sale.id)} className={`rounded-xl p-2 transition ${isDark ? 'bg-stone-800 text-stone-200 hover:bg-stone-700' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}`} aria-label={`Eliminar pedido ${sale.item}`}>
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
@@ -177,10 +254,7 @@ export default function DeliveryPage() {
           section="delivery"
           products={productCatalog}
           isDark={isDark}
-          onClose={() => {
-            setClientName('')
-            setIsModalOpen(false)
-          }}
+          onClose={handleCloseModal}
           title="Nuevo pedido"
           itemPrefix={`${platformLabels[selectedPlatform]} • ${clientName.trim()} · `}
           canSubmit={Boolean(clientName.trim())}

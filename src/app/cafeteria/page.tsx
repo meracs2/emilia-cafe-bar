@@ -3,9 +3,42 @@
 import { useEffect, useRef, useState } from 'react'
 import { ArrowLeft, Plus, Coffee, Trash2, Palette, ChevronDown, DollarSign, Package, Sparkles } from 'lucide-react'
 import Link from 'next/link'
-import { countSaleTickets, useSalesStore } from '@/store/salesStore'
-import { useShallow } from 'zustand/react/shallow'
 import SalesCheckout from '@/app/components/SalesCheckout'
+import { createClient } from '@/lib/supabase/client'
+
+export type SalesSection = 'cafeteria' | 'heladeria' | 'bar' | 'almacen' | 'mesas' | 'delivery'
+
+export interface CatalogProduct {
+  id: string
+  name: string
+  category: string
+  price: number
+  stock: number
+  unit: string
+  sections: SalesSection[]
+  active: boolean
+  offerName?: string | null
+  offerPrice?: number | null
+  isWeightBased?: boolean
+}
+
+export interface PaymentAllocation {
+  method: string
+  amount: number
+}
+
+export interface Sale {
+  id: string
+  productId?: string
+  item: string
+  quantity: number
+  total: number
+  section: SalesSection
+  createdAt?: string
+  created_at?: string
+  paymentMethod?: string
+  paymentAllocations?: PaymentAllocation[]
+}
 
 type ThemeMode = 'minimal-light' | 'minimal-dark' | 'normal-light' | 'normal-dark'
 
@@ -17,16 +50,36 @@ const themeOptions = [
 ] as const
 
 export default function CafeteriaPage() {
+  const supabase = createClient()
+
   const [theme, setTheme] = useState<ThemeMode>('normal-light')
   const [isThemeOpen, setIsThemeOpen] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [products, setProducts] = useState<CatalogProduct[]>([])
+  const [sales, setSales] = useState<Sale[]>([])
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  const productCatalog = useSalesStore(useShallow((state) =>
-    state.products.filter((product) => product.active && product.sections.includes('cafeteria')),
-  ))
-  const sales = useSalesStore(useShallow((state) => state.getSectionSales('cafeteria')))
-  const removeSale = useSalesStore((state) => state.removeSale)
+  // 1. CARGAR PRODUCTOS Y VENTAS DESDE SUPABASE
+  const loadData = async () => {
+    const { data: productsData, error: prodErr } = await supabase
+      .from('products')
+      .select('*')
+    if (!prodErr && productsData) {
+      setProducts(productsData)
+    }
+
+    const { data: salesData, error: salesErr } = await supabase
+      .from('sales')
+      .select('*')
+      .eq('section', 'cafeteria')
+    if (!salesErr && salesData) {
+      setSales(salesData)
+    }
+  }
+
+  useEffect(() => {
+    loadData()
+  }, [])
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('emilia_theme') as ThemeMode | null
@@ -46,6 +99,10 @@ export default function CafeteriaPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  const productCatalog = products.filter(
+    (product) => product.active && product.sections?.includes('cafeteria')
+  )
+
   const isDark = theme.includes('dark')
 
   const handleThemeChange = (newTheme: ThemeMode) => {
@@ -54,8 +111,27 @@ export default function CafeteriaPage() {
     setIsThemeOpen(false)
   }
 
+  // 2. ELIMINAR VENTA DIRECTAMENTE EN SUPABASE
+  const handleRemoveSale = async (id: string) => {
+    const confirmed = window.confirm('¿Deseas eliminar este registro de venta?')
+    if (!confirmed) return
+
+    const { error } = await supabase.from('sales').delete().eq('id', id)
+    if (error) {
+      alert(`Error al eliminar en Supabase: ${error.message}`)
+      return
+    }
+
+    setSales((prev) => prev.filter((sale) => sale.id !== id))
+  }
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false)
+    loadData()
+  }
+
   const totalVentas = sales.reduce((acc, sale) => acc + sale.total, 0)
-  const tickets = countSaleTickets(sales)
+  const tickets = sales.length
   const promedioTicket = tickets > 0 ? totalVentas / tickets : 0
   const productoMasVendido = sales.reduce<Record<string, number>>((acc, sale) => {
     acc[sale.item] = (acc[sale.item] ?? 0) + sale.quantity
@@ -224,7 +300,7 @@ export default function CafeteriaPage() {
                     <div>
                       <p className="font-bold">{sale.item}</p>
                       <p className={`text-xs ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
-                        {sale.quantity} unidades · {new Date(sale.createdAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Argentina/Buenos_Aires' })}
+                        {sale.quantity} unidades · {new Date(sale.createdAt || sale.created_at || Date.now()).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Argentina/Buenos_Aires' })}
                       </p>
                     </div>
                   </div>
@@ -232,7 +308,7 @@ export default function CafeteriaPage() {
                   <div className="flex items-center gap-3">
                     <p className="text-base font-black">${sale.total.toLocaleString('es-AR')}</p>
                     <button
-                      onClick={() => removeSale(sale.id)}
+                      onClick={() => handleRemoveSale(sale.id)}
                       className={`rounded-xl p-2 transition ${
                         isDark ? 'bg-stone-800 text-stone-200 hover:bg-stone-700' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
                       }`}
@@ -286,7 +362,7 @@ export default function CafeteriaPage() {
         </section>
       </div>
 
-      {isModalOpen && <SalesCheckout section="cafeteria" products={productCatalog} isDark={isDark} onClose={() => setIsModalOpen(false)} />}
+      {isModalOpen && <SalesCheckout section="cafeteria" products={productCatalog} isDark={isDark} onClose={handleCloseModal} />}
     </main>
   )
 }
