@@ -17,8 +17,8 @@ export interface CatalogProduct {
   unit: string
   sections: SalesSection[]
   active: boolean
-  offerName?: string | null
-  offerPrice?: number | null
+  offerName?: string | undefined
+  offerPrice?: number | undefined
   isWeightBased?: boolean
 }
 
@@ -62,7 +62,13 @@ export default function AlmacenPage() {
       .from('products')
       .select('*')
     if (!prodErr && productsData) {
-      setProducts(productsData as CatalogProduct[])
+      // Mapeamos para asegurarnos de que null se convierta en undefined y matchee el store
+      const formatted = productsData.map((p) => ({
+        ...p,
+        offerName: p.offerName ?? undefined,
+        offerPrice: p.offerPrice ?? undefined,
+      }))
+      setProducts(formatted as CatalogProduct[])
     }
 
     const { data: salesData, error: salesErr } = await supabase
