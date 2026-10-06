@@ -5,22 +5,7 @@ import Link from 'next/link'
 import { ArrowLeft, Check, CircleDollarSign, Minus, Plus, Trash2, Users, X } from 'lucide-react'
 import { initialPaymentSplitPlan, PaymentSplitEditor, resolvePaymentSplit, type PaymentSplitPlan } from '@/app/components/SalesCheckout'
 import { createClient } from '@/lib/supabase/client'
-
-export type SalesSection = 'cafeteria' | 'heladeria' | 'bar' | 'almacen' | 'mesas' | 'delivery'
-
-export interface CatalogProduct {
-  id: string
-  name: string
-  category: string
-  price: number
-  stock: number
-  unit: string
-  sections: SalesSection[]
-  active: boolean
-  offerName?: string | null
-  offerPrice?: number | null
-  isWeightBased?: boolean
-}
+import type { CatalogProduct, SalesSection } from '@/store/salesStore'
 
 export interface PaymentAllocation {
   method: string
@@ -270,12 +255,23 @@ export default function MesasPage() {
       return
     }
 
-    // Descontar stock de productos en Supabase
+    const stockErrors: string[] = []
     for (const line of currentOrder.lines) {
       const prod = products.find((p) => p.id === line.productId)
       if (prod) {
         const newStock = Math.max(0, prod.stock - line.quantity)
-        await supabase.from('products').update({ stock: newStock }).eq('id', line.productId)
+        const { data: updatedProduct, error: stockError } = await supabase
+          .from('products')
+          .update({ stock: newStock })
+          .eq('id', line.productId)
+          .eq('stock', prod.stock)
+          .select('id')
+          .maybeSingle()
+        if (stockError) {
+          stockErrors.push(`${prod.name}: ${stockError.message}`)
+        } else if (!updatedProduct) {
+          stockErrors.push(`${prod.name}: el stock cambió durante el cobro.`)
+        }
       }
     }
 
@@ -286,7 +282,11 @@ export default function MesasPage() {
       [selectedTable]: { tableName: selectedTable, lines: [], openedAt: undefined },
     }))
 
-    setError('')
+    setError(
+      stockErrors.length
+        ? `La venta se guardó, pero no se pudo actualizar el stock en Supabase: ${stockErrors.join('; ')}`
+        : '',
+    )
     setPaymentPlan(initialPaymentSplitPlan())
     setSelectedTable(null)
   }

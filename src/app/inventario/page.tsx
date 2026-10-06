@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect, type FormEvent } from 'react'
+import { useState, useEffect, useMemo, type FormEvent } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Check, Edit3, PackagePlus, Plus, Save, Scale, Trash2, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { CatalogProduct, SalesSection } from '@/store/salesStore'
+import { useSalesStore } from '@/store/salesStore'
 
 const sellSections: { id: SalesSection; label: string }[] = [
   { id: 'cafeteria', label: 'Cafetería' },
@@ -31,7 +32,8 @@ const emptyForm: ProductForm = {
 }
 
 export default function InventarioPage() {
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
+  const setCatalogProducts = useSalesStore((state) => state.setProducts)
 
   const [products, setProducts] = useState<CatalogProduct[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -47,10 +49,11 @@ export default function InventarioPage() {
         console.error('Error al cargar productos de Supabase:', error.message)
       } else if (data) {
         setProducts(data as CatalogProduct[])
+        setCatalogProducts(data as CatalogProduct[])
       }
     }
     loadProducts()
-  }, [])
+  }, [setCatalogProducts, supabase])
 
   const stockTotal = products.reduce((sum, product) => sum + product.stock, 0)
   const lowStockCount = products.filter((product) => product.active && product.stock <= (product.isWeightBased ? 1 : 5)).length
@@ -78,60 +81,72 @@ export default function InventarioPage() {
     setLoading(true)
     setError('')
 
-    const productPayload = {
-      name,
-      category,
-      price: form.price,
-      stock: form.stock,
-      unit: form.unit.trim(),
-      sections: form.sections,
-      active: form.active,
-      offerName: form.offerName?.trim() || null,
-      offerPrice: form.offerName?.trim() ? form.offerPrice : null,
-      isWeightBased: form.isWeightBased ?? false,
-    } as any
-
-    if (editingId) {
-      const { data, error: updateErr } = await supabase
-        .from('products')
-        .update(productPayload)
-        .eq('id', editingId)
-        .select()
-        .single()
-
-      if (updateErr) {
-        setError(`Error en Supabase: ${updateErr.message}`)
-        setLoading(false)
-        return
+    try {
+      const productPayload: Omit<CatalogProduct, 'id'> = {
+        name,
+        category,
+        price: form.price,
+        stock: form.stock,
+        unit: form.unit.trim(),
+        sections: form.sections,
+        active: form.active,
+        offerName: form.offerName?.trim() || null,
+        offerPrice: form.offerName?.trim() ? form.offerPrice : null,
+        isWeightBased: form.isWeightBased ?? false,
       }
 
-      setProducts((prev) =>
-        prev.map((product) => (product.id === editingId ? (data as CatalogProduct) : product))
-      )
-    } else {
-      const { data, error: insertErr } = await supabase
-        .from('products')
-        .insert([productPayload])
-        .select()
-        .single()
+      if (editingId) {
+        const { data, error: updateErr } = await supabase
+          .from('products')
+          .update(productPayload)
+          .eq('id', editingId)
+          .select()
+          .single()
 
-      if (insertErr) {
-        setError(`Error en Supabase: ${insertErr.message}`)
-        setLoading(false)
-        return
+        if (updateErr) {
+          setError(`No se pudo actualizar el producto en Supabase: ${updateErr.message}`)
+          return
+        }
+
+        const updatedProduct = data as CatalogProduct
+        setProducts((prev) =>
+          prev.map((product) => (product.id === editingId ? updatedProduct : product))
+        )
+        setCatalogProducts(
+          useSalesStore.getState().products.map((product) =>
+            product.id === editingId ? updatedProduct : product,
+          ),
+        )
+      } else {
+        const { data, error: insertErr } = await supabase
+          .from('products')
+          .insert([productPayload])
+          .select()
+          .single()
+
+        if (insertErr) {
+          setError(`No se pudo crear el producto en Supabase: ${insertErr.message}`)
+          return
+        }
+
+        const createdProduct = data as CatalogProduct
+        setProducts((prev) => [...prev, createdProduct])
+        setCatalogProducts([...useSalesStore.getState().products, createdProduct])
       }
 
-      setProducts((prev) => [...prev, data as CatalogProduct])
+      resetForm()
+    } catch (submitError) {
+      const message = submitError instanceof Error ? submitError.message : 'Error inesperado al guardar.'
+      setError(`No se pudo completar el guardado en Supabase: ${message}`)
+    } finally {
+      setLoading(false)
     }
-
-    setLoading(false)
-    resetForm()
   }
 
-  const handleQuickUpdate = async (id: string, patch: Partial<CatalogProduct>) => {
+  const handleQuickUpdate = async (id: string, patch: Partial<Omit<CatalogProduct, 'id'>>) => {
     const { error: err } = await supabase
       .from('products')
-      .update(patch as any)
+      .update(patch)
       .eq('id', id)
 
     if (err) {
@@ -141,6 +156,11 @@ export default function InventarioPage() {
 
     setProducts((prev) =>
       prev.map((product) => (product.id === id ? { ...product, ...patch } : product))
+    )
+    setCatalogProducts(
+      useSalesStore.getState().products.map((product) =>
+        product.id === id ? { ...product, ...patch } : product,
+      ),
     )
   }
 
@@ -166,6 +186,7 @@ export default function InventarioPage() {
     }
 
     setProducts((prev) => prev.filter((p) => p.id !== product.id))
+    setCatalogProducts(useSalesStore.getState().products.filter((p) => p.id !== product.id))
     if (editingId === product.id) resetForm()
   }
 

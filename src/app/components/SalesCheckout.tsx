@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, type FormEvent, type ReactNode } from 'react'
-import { useSalesStore, type CatalogProduct, type PaymentAllocation, type PaymentMethod, type SaleLineInput, type SalesSection } from '@/store/salesStore'
+import { createClient } from '@/lib/supabase/client'
+import type { CatalogProduct, PaymentAllocation, PaymentMethod, SalesSection } from '@/store/salesStore'
 
 export const paymentMethods: PaymentMethod[] = ['Efectivo', 'Tarjeta', 'Débito', 'Transferencia', 'Mercado Pago']
 
@@ -40,6 +41,25 @@ export const resolvePaymentSplit = (total: number, plan: PaymentSplitPlan): Paym
       amount: method === plan.primaryMethod ? primaryAmount : plan.amounts[method] ?? 0,
     }))
     .filter((allocation) => allocation.amount > 0)
+}
+
+const allocatePaymentsToLines = (lineTotals: number[], payments: PaymentAllocation[]) => {
+  const allocations = lineTotals.map((): PaymentAllocation[] => [])
+  const remainingByLine = lineTotals.map((total) => Math.round(total * 100))
+
+  for (const payment of payments) {
+    let centsRemaining = Math.round(payment.amount * 100)
+    for (let index = 0; index < lineTotals.length && centsRemaining > 0; index += 1) {
+      const centsForLine = Math.min(centsRemaining, remainingByLine[index])
+      if (centsForLine > 0) {
+        allocations[index].push({ method: payment.method, amount: centsForLine / 100 })
+        remainingByLine[index] -= centsForLine
+        centsRemaining -= centsForLine
+      }
+    }
+  }
+
+  return allocations
 }
 
 type PaymentSplitEditorProps = {
@@ -160,7 +180,7 @@ export default function SalesCheckout({
   validationMessage,
   options,
 }: SalesCheckoutProps) {
-  const addSales = useSalesStore((state) => state.addSales)
+  const supabase = createClient()
   const saleOptions = options ?? products.map((product) => ({
     id: product.id,
     productId: product.id,
@@ -175,6 +195,7 @@ export default function SalesCheckout({
   const [quantityDrafts, setQuantityDrafts] = useState<Record<string, string>>({})
   const [paymentPlan, setPaymentPlan] = useState<PaymentSplitPlan>(initialPaymentSplitPlan)
   const [error, setError] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
 
   const selectedOption = saleOptions.find((option) => option.id === selectedOptionId) ?? saleOptions[0]
   const total = cart.reduce((sum, entry) => sum + entry.option.unitPrice * entry.quantity, 0)
@@ -234,7 +255,7 @@ export default function SalesCheckout({
     setError('')
   }
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!canSubmit) {
       setError(validationMessage ?? 'Completá los datos requeridos.')
@@ -251,19 +272,109 @@ export default function SalesCheckout({
       return
     }
 
-    const items: SaleLineInput[] = cart.map(({ option, quantity: count }) => ({
-      productId: option.productId,
-      item: `${itemPrefix}${option.item}`,
-      quantity: count,
-      stockQuantity: option.stockPerUnit * count,
-      total: option.unitPrice * count,
-    }))
-    const result = addSales({ section, items, paymentAllocations })
-    if (!result.success) {
-      setError(result.error)
-      return
+    setIsSaving(true)
+    setError('')
+
+    try {
+      const stockRequired = new Map<string, number>()
+      for (const { option, quantity: count } of cart) {
+        stockRequired.set(
+          option.productId,
+          (stockRequired.get(option.productId) ?? 0) + option.stockPerUnit * count,
+        )
+      }
+
+      const { data: currentProducts, error: stockReadError } = await supabase
+        .from('products')
+        .select('id, name, stock, active, sections')
+        .in('id', [...stockRequired.keys()])
+
+      if (stockReadError) {
+        setError(`No se pudo verificar el stock en Supabase: ${stockReadError.message}`)
+        return
+      }
+
+      const currentById = new Map(currentProducts.map((product) => [product.id, product]))
+      for (const [productId, required] of stockRequired) {
+        const product = currentById.get(productId)
+        if (!product || !product.active || !product.sections?.includes(section)) {
+          setError('Uno de los productos ya no está disponible para esta sección.')
+          return
+        }
+        if (Number(product.stock) < required) {
+          setError(`Stock insuficiente de ${product.name ?? 'un producto'}. Disponible: ${product.stock}.`)
+          return
+        }
+      }
+
+      const updatedStocks: { id: string; previous: number; next: number }[] = []
+      const restoreStocks = async () => {
+        const failures: string[] = []
+        for (const stock of updatedStocks.reverse()) {
+          const { data, error: restoreError } = await supabase
+            .from('products')
+            .update({ stock: stock.previous })
+            .eq('id', stock.id)
+            .eq('stock', stock.next)
+            .select('id')
+            .maybeSingle()
+          if (restoreError || !data) {
+            failures.push(restoreError?.message ?? `No se pudo restaurar el stock del producto ${stock.id}.`)
+          }
+        }
+        return failures
+      }
+
+      for (const [productId, required] of stockRequired) {
+        const product = currentById.get(productId)!
+        const previous = Number(product.stock)
+        const next = previous - required
+        const { data, error: stockUpdateError } = await supabase
+          .from('products')
+          .update({ stock: next })
+          .eq('id', productId)
+          .eq('stock', previous)
+          .select('id')
+          .maybeSingle()
+
+        if (stockUpdateError || !data) {
+          const rollbackFailures = await restoreStocks()
+          const detail = stockUpdateError?.message ?? 'El stock cambió mientras se procesaba la venta.'
+          setError(
+            `No se pudo actualizar el stock en Supabase: ${detail}${rollbackFailures.length ? ` También falló la reversión: ${rollbackFailures.join('; ')}` : ''}`,
+          )
+          return
+        }
+        updatedStocks.push({ id: productId, previous, next })
+      }
+
+      const lineAllocations = allocatePaymentsToLines(
+        cart.map(({ option, quantity: count }) => option.unitPrice * count),
+        paymentAllocations,
+      )
+      const salesToInsert = cart.map(({ option, quantity: count }, index) => ({
+        item: `${itemPrefix}${option.item}`,
+        quantity: count,
+        total: option.unitPrice * count,
+        section,
+        product_id: option.productId,
+        payment_method: lineAllocations[index].map((allocation) => allocation.method).join(', '),
+        payment_allocations: lineAllocations[index],
+      }))
+
+      const { error: insertError } = await supabase.from('sales').insert(salesToInsert)
+      if (insertError) {
+        const rollbackFailures = await restoreStocks()
+        setError(
+          `No se pudo guardar la venta en Supabase: ${insertError.message}${rollbackFailures.length ? ` También falló la reversión del stock: ${rollbackFailures.join('; ')}` : ''}`,
+        )
+        return
+      }
+
+      onClose()
+    } finally {
+      setIsSaving(false)
     }
-    onClose()
   }
 
   return (
@@ -349,8 +460,8 @@ export default function SalesCheckout({
           <PaymentSplitEditor total={total} plan={paymentPlan} onChange={setPaymentPlan} />
           {error && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
           {validationMessage && !canSubmit && <p className="text-xs text-amber-700">{validationMessage}</p>}
-          <button type="submit" disabled={cart.length === 0 || !canSubmit} className="w-full rounded-xl bg-[#8C1D40] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#6F1632] disabled:cursor-not-allowed disabled:opacity-50">
-            Cobrar ${total.toLocaleString('es-AR')} y registrar venta
+          <button type="submit" disabled={cart.length === 0 || !canSubmit || isSaving} className="w-full rounded-xl bg-[#8C1D40] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#6F1632] disabled:cursor-not-allowed disabled:opacity-50">
+            {isSaving ? 'Guardando venta...' : `Cobrar $${total.toLocaleString('es-AR')} y registrar venta`}
           </button>
         </form>
       </div>

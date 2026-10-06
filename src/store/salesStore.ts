@@ -51,8 +51,9 @@ export type CatalogProduct = {
   unit: string
   sections: SalesSection[]
   active: boolean
-  offerName?: string
-  offerPrice?: number
+  offerName?: string | null
+  offerPrice?: number | null
+  isWeightBased?: boolean
 }
 
 export type IceCreamPriceOption = {
@@ -108,6 +109,7 @@ type SalesState = {
   products: CatalogProduct[]
   iceCreamPrices: IceCreamPriceOption[]
   tableOrders: Record<string, TableOrder>
+  setProducts: (products: CatalogProduct[]) => void
   addProduct: (product: Omit<CatalogProduct, 'id'> & { id?: string }) => void
   updateProduct: (id: string, changes: Partial<Omit<CatalogProduct, 'id'>>) => void
   deleteProduct: (id: string) => void
@@ -168,6 +170,7 @@ export const useSalesStore = create<SalesState>()(
       products: initialProducts,
       iceCreamPrices: initialIceCreamPrices,
       tableOrders: createEmptyTableOrders(),
+      setProducts: (products) => set({ products }),
       addProduct: (product) => {
         const record: CatalogProduct = {
           ...product,

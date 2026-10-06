@@ -5,22 +5,7 @@ import { ArrowLeft, Plus, Coffee, Trash2, Palette, ChevronDown, DollarSign, Pack
 import Link from 'next/link'
 import SalesCheckout from '@/app/components/SalesCheckout'
 import { createClient } from '@/lib/supabase/client'
-
-export type SalesSection = 'cafeteria' | 'heladeria' | 'bar' | 'almacen' | 'mesas' | 'delivery'
-
-export interface CatalogProduct {
-  id: string
-  name: string
-  category: string
-  price: number
-  stock: number
-  unit: string
-  sections: SalesSection[]
-  active: boolean
-  offerName?: string | null
-  offerPrice?: number | null
-  isWeightBased?: boolean
-}
+import type { CatalogProduct, SalesSection } from '@/store/salesStore'
 
 export interface PaymentAllocation {
   method: string

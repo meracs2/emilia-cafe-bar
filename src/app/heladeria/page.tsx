@@ -3,10 +3,18 @@
 import { useEffect, useRef, useState } from 'react'
 import { ArrowLeft, Plus, IceCream, Trash2, Palette, ChevronDown, DollarSign, Package, Sparkles } from 'lucide-react'
 import Link from 'next/link'
-import { countSaleTickets, useSalesStore, type CatalogProduct } from '@/store/salesStore'
-import { useShallow } from 'zustand/react/shallow'
+import { useSalesStore, type CatalogProduct } from '@/store/salesStore'
 import SalesCheckout, { type SaleProductOption } from '@/app/components/SalesCheckout'
 import { createClient } from '@/lib/supabase/client'
+
+type Sale = {
+  id: string
+  productId?: string
+  item: string
+  quantity: number
+  total: number
+  createdAt: string
+}
 
 type ThemeMode = 'minimal-light' | 'minimal-dark' | 'normal-light' | 'normal-dark'
 
@@ -22,33 +30,50 @@ export default function HeladeriaPage() {
   const [isThemeOpen, setIsThemeOpen] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [productCatalog, setProductCatalog] = useState<CatalogProduct[]>([])
+  const [sales, setSales] = useState<Sale[]>([])
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   const supabase = createClient()
 
-  const sales = useSalesStore(useShallow((state) => state.getSectionSales('heladeria')))
-  const iceCreamPrices = useSalesStore(useShallow((state) => state.iceCreamPrices))
+  const iceCreamPrices = useSalesStore((state) => state.iceCreamPrices)
   const updateIceCreamPrice = useSalesStore((state) => state.updateIceCreamPrice)
-  const removeSale = useSalesStore((state) => state.removeSale)
 
-  // Cargar catálogo directamente de Supabase
-  useEffect(() => {
-    async function fetchProducts() {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .eq('active', true)
-        .contains('sections', ['heladeria'])
-        .order('name', { ascending: true })
+  const loadData = async () => {
+    const { data: productsData, error: productsError } = await supabase
+      .from('products')
+      .select('*')
+      .eq('active', true)
+      .contains('sections', ['heladeria'])
+      .order('name', { ascending: true })
 
-      if (!error && data) {
-        setProductCatalog(data)
-      } else if (error) {
-        console.error('Error al cargar heladeria desde Supabase:', error.message)
-      }
+    if (productsError) {
+      console.error('Error al cargar productos de heladería desde Supabase:', productsError.message)
+    } else if (productsData) {
+      setProductCatalog(productsData)
     }
 
-    fetchProducts()
+    const { data: salesData, error: salesError } = await supabase
+      .from('sales')
+      .select('*')
+      .eq('section', 'heladeria')
+      .order('created_at', { ascending: false })
+
+    if (salesError) {
+      console.error('Error al cargar ventas de heladería desde Supabase:', salesError.message)
+    } else if (salesData) {
+      setSales(salesData.map((sale) => ({
+        id: sale.id,
+        productId: sale.product_id,
+        item: sale.item,
+        quantity: Number(sale.quantity),
+        total: Number(sale.total),
+        createdAt: sale.created_at ?? '',
+      })))
+    }
+  }
+
+  useEffect(() => {
+    loadData()
   }, [])
 
   useEffect(() => {
@@ -68,6 +93,18 @@ export default function HeladeriaPage() {
 
   const isDark = theme.includes('dark')
 
+  const handleRemoveSale = async (id: string) => {
+    if (!window.confirm('¿Deseas eliminar este registro de venta?')) return
+
+    const { error } = await supabase.from('sales').delete().eq('id', id)
+    if (error) {
+      alert(`Error al eliminar en Supabase: ${error.message}`)
+      return
+    }
+
+    setSales((current) => current.filter((sale) => sale.id !== id))
+  }
+
   const handleThemeChange = (newTheme: ThemeMode) => {
     setTheme(newTheme)
     localStorage.setItem('emilia_theme', newTheme)
@@ -75,7 +112,7 @@ export default function HeladeriaPage() {
   }
 
   const totalVentas = sales.reduce((acc, sale) => acc + sale.total, 0)
-  const tickets = countSaleTickets(sales)
+  const tickets = sales.length
   const promedio = tickets > 0 ? totalVentas / tickets : 0
   const ventasPorProducto = sales.reduce<Record<string, number>>((acc, sale) => {
     acc[sale.item] = (acc[sale.item] ?? 0) + sale.quantity
@@ -218,7 +255,7 @@ export default function HeladeriaPage() {
 
                   <div className="flex items-center gap-3">
                     <p className="text-base font-black">${sale.total.toLocaleString('es-AR')}</p>
-                    <button onClick={() => removeSale(sale.id)} className={`rounded-xl p-2 transition ${isDark ? 'bg-stone-800 text-stone-200 hover:bg-stone-700' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}`} aria-label={`Eliminar venta de ${sale.item}`}>
+                    <button onClick={() => handleRemoveSale(sale.id)} className={`rounded-xl p-2 transition ${isDark ? 'bg-stone-800 text-stone-200 hover:bg-stone-700' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}`} aria-label={`Eliminar venta de ${sale.item}`}>
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
@@ -276,7 +313,7 @@ export default function HeladeriaPage() {
         </section>
       </div>
 
-      {isModalOpen && <SalesCheckout section="heladeria" products={productCatalog} options={saleOptions} isDark={isDark} onClose={() => setIsModalOpen(false)} />}
+      {isModalOpen && <SalesCheckout section="heladeria" products={productCatalog} options={saleOptions} isDark={isDark} onClose={() => { setIsModalOpen(false); loadData() }} />}
     </main>
   )
 }
