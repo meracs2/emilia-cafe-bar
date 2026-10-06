@@ -1,0 +1,2664 @@
+// --- FILE: C:\Users\mhmc\emilia-cafe.bar\src\app\page.tsx ---
+'use client'
+
+import { useState, useRef, useEffect } from 'react'
+import { ShoppingBag, Clock, DollarSign, Package, Sparkles, ArrowRight, Coffee, IceCream, UtensilsCrossed, Store, Palette, ChevronDown, Heart, Sparkle, Users, Bike, Truck } from 'lucide-react'
+import Link from 'next/link'
+
+// ==========================================
+// SISTEMA DE EMOCIONES (Gato Anime Chibi)
+// ==========================================
+
+type EmiEmotion = 'happy' | 'neutral' | 'surprised' | 'sad' | 'thinking'
+
+const EyeExpressions = {
+  happy: (
+    <>
+      <path d="M 40 54 Q 47 46 54 54" stroke="#1E1B24" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+      <path d="M 66 54 Q 73 46 80 54" stroke="#1E1B24" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+    </>
+  ),
+  neutral: (
+    <>
+      <ellipse cx="47" cy="52" rx="5" ry="7" fill="#1E1B24" />
+      <ellipse cx="73" cy="52" rx="5" ry="7" fill="#1E1B24" />
+      <circle cx="45" cy="49" r="2" fill="#FFFFFF" />
+      <circle cx="71" cy="49" r="2" fill="#FFFFFF" />
+    </>
+  ),
+  surprised: (
+    <>
+      <circle cx="47" cy="52" r="6.5" fill="#1E1B24" />
+      <circle cx="73" cy="52" r="6.5" fill="#1E1B24" />
+      <circle cx="49" cy="50" r="2.2" fill="#FFFFFF" />
+      <circle cx="75" cy="50" r="2.2" fill="#FFFFFF" />
+    </>
+  ),
+  sad: (
+    <>
+      <ellipse cx="47" cy="54" rx="5" ry="7" fill="#1E1B24" />
+      <ellipse cx="73" cy="54" rx="5" ry="7" fill="#1E1B24" />
+      <circle cx="45" cy="52" r="1.5" fill="#FFFFFF" />
+      <circle cx="71" cy="52" r="1.5" fill="#FFFFFF" />
+      <path d="M 39 46 Q 47 50 55 46" stroke="#1E1B24" strokeWidth="1.5" fill="none" />
+      <path d="M 65 46 Q 73 50 81 46" stroke="#1E1B24" strokeWidth="1.5" fill="none" />
+    </>
+  ),
+  thinking: (
+    <>
+      <line x1="41" y1="52" x2="53" y2="52" stroke="#1E1B24" strokeWidth="2.5" strokeLinecap="round" />
+      <line x1="67" y1="52" x2="79" y2="52" stroke="#1E1B24" strokeWidth="2.5" strokeLinecap="round" />
+      <path d="M 48 42 Q 60 38 72 42" stroke="#1E1B24" strokeWidth="1.5" fill="none" />
+    </>
+  ),
+}
+
+const MouthExpressions = {
+  happy: (
+    <path d="M 54 64 Q 57 68 60 64 Q 63 68 66 64" stroke="#1E1B24" strokeWidth="2" fill="none" strokeLinecap="round" />
+  ),
+  neutral: (
+    <path d="M 55 65 Q 60 68 65 65" stroke="#1E1B24" strokeWidth="2" fill="none" strokeLinecap="round" />
+  ),
+  surprised: (
+    <circle cx="60" cy="66" r="3.5" fill="#1E1B24" />
+  ),
+  sad: (
+    <path d="M 55 68 Q 60 63 65 68" stroke="#1E1B24" strokeWidth="2" fill="none" strokeLinecap="round" />
+  ),
+  thinking: (
+    <ellipse cx="60" cy="66" rx="2.5" ry="1.5" fill="#1E1B24" />
+  ),
+}
+
+function ChibiNekoEmi({ emotion = 'neutral', isDark }: { emotion?: EmiEmotion, isDark: boolean }) {
+  return (
+    <div className="relative group shrink-0">
+      <div className="w-28 h-28 rounded-3xl bg-gradient-to-tr from-[#FF85A1] via-[#FFB3C1] to-[#FFF0F3] p-1.5 shadow-md flex items-center justify-center overflow-hidden">
+        <div className="w-full h-full bg-[#1E1B24] rounded-[22px] overflow-hidden relative flex items-center justify-center">
+          
+          <svg viewBox="0 0 120 120" className="w-full h-full drop-shadow-lg scale-110 translate-y-1 transition-all duration-300">
+            <circle cx="60" cy="62" r="55" fill="#FFE8EC" />
+            <path d="M 10 100 Q 60 75 110 100 Z" fill="#FF85A1" opacity="0.3" />
+            
+            {/* Orejas de Gato Anime */}
+            <path d="M 32 36 L 20 10 L 45 24 Z" fill="#6B3E1F" />
+            <path d="M 30 32 L 24 14 L 41 24 Z" fill="#FFB3C1" />
+            <path d="M 88 36 L 100 10 L 75 24 Z" fill="#6B3E1F" />
+            <path d="M 90 32 L 96 14 L 79 24 Z" fill="#FFB3C1" />
+
+            {/* Cuerpo y Remera */}
+            <path d="M 30 110 C 30 85 90 85 90 110 Z" fill="#0F172A" />
+            <path d="M 45 88 L 75 88 L 60 105 Z" fill="#FFFFFF" />
+            <circle cx="60" cy="92" r="3.5" fill="#FF85A1" />
+
+            {/* Cabeza / Pelo */}
+            <circle cx="60" cy="64" r="36" fill="#6B3E1F" />
+            <ellipse cx="60" cy="65" rx="27" ry="25" fill="#FFEDDF" />
+
+            {/* Flequillo Anime */}
+            <path d="M 35 48 Q 60 30 85 48 Q 90 62 83 75 Q 72 56 60 54 Q 48 56 37 75 Q 30 62 35 48 Z" fill="#6B3E1F" />
+            <path d="M 42 45 Q 60 30 78 45 Q 69 36 60 36 Q 51 36 42 45 Z" fill="#8B5CF6" opacity="0.2" />
+
+            <circle cx="60" cy="38" r="4.5" fill="#FF85A1" />
+            <circle cx="60" cy="38" r="1.5" fill="#FFFFFF" />
+
+            {/* Sonrojos */}
+            <ellipse cx="38" cy="71" rx="4.5" ry="2" fill="#FF85A1" opacity="0.6" />
+            <ellipse cx="82" cy="71" rx="4.5" ry="2" fill="#FF85A1" opacity="0.6" />
+
+            {/* Bigotes */}
+            <line x1="33" y1="68" x2="26" y2="66" stroke="#C27803" strokeWidth="1" strokeLinecap="round" opacity="0.4" />
+            <line x1="33" y1="71" x2="25" y2="72" stroke="#C27803" strokeWidth="1" strokeLinecap="round" opacity="0.4" />
+            <line x1="87" y1="68" x2="94" y2="66" stroke="#C27803" strokeWidth="1" strokeLinecap="round" opacity="0.4" />
+            <line x1="87" y1="71" x2="95" y2="72" stroke="#C27803" strokeWidth="1" strokeLinecap="round" opacity="0.4" />
+
+            {/* Ojos y Boca dinámicos */}
+            {EyeExpressions[emotion]}
+            {MouthExpressions[emotion]}
+            
+          </svg>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ==========================================
+// PÁGINA PRINCIPAL
+// ==========================================
+
+export default function Home() {
+  const [activeTab, setActiveTab] = useState<string>('cafeteria')
+  const [theme, setTheme] = useState<'minimal-light' | 'minimal-dark' | 'normal-light' | 'normal-dark'>('normal-light')
+  const [isThemeOpen, setIsThemeOpen] = useState(false)
+  
+  const [emiEmotion, setEmiEmotion] = useState<EmiEmotion>('happy')
+  const [emiMessage, setEmiMessage] = useState('¡Miau! Hola amo, listos para organizar los pedidos y proveedores 📦✨')
+  const [fadeAnim, setFadeAnim] = useState(true)
+  
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  const emiDialogs: { text: string, emotion: EmiEmotion }[] = [
+    { text: '¡Miau! Acuérdate de registrar bien cada cobro o me pongo triste 😿', emotion: 'sad' },
+    { text: '¡El aroma a café recién molido está increíble hoy! ☕✨', emotion: 'happy' },
+    { text: '¿Controlando las facturas de proveedores? ¡Yo te ayudo con las cuentas!', emotion: 'happy' },
+    { text: '¡A trabajar duro para que Emilia sea la mejor del barrio! 🚀', emotion: 'happy' },
+    { text: '¡Cuidado con los pedidos de helado que se derriten rápido! 🍦', emotion: 'surprised' },
+    { text: 'Hmm... déjame pensar qué mercadería hace falta reponer.', emotion: 'thinking' },
+    { text: '¡Hola de nuevo, amo! ¿Qué sección revisamos ahora?', emotion: 'neutral' }
+  ]
+
+  const triggerRandomTalk = () => {
+    setFadeAnim(false)
+    setTimeout(() => {
+      const randomDialog = emiDialogs[Math.floor(Math.random() * emiDialogs.length)]
+      setEmiMessage(randomDialog.text)
+      setEmiEmotion(randomDialog.emotion)
+      setFadeAnim(true)
+    }, 150)
+  }
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      triggerRandomTalk()
+    }, 9000)
+    return () => clearInterval(interval)
+  }, [])
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsThemeOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // 9 MÓDULOS CON RUTAS DIRECTAS EN src/app/
+  const modules = [
+    { 
+      id: 'cafeteria',
+      title: 'Cafetería', 
+      subtitle: 'Cafés y Medialunas',
+      desc: 'Gestión específica de barra de café y pastelería.', 
+      href: '/cafeteria', 
+      icon: <Coffee className="w-5 h-5 text-[#8C1D40]" />,
+      badge: 'Venta',
+      normalBgDark: 'bg-[#FFCCD5]/25 hover:bg-[#FFCCD5]/35 border-[#FF85A1]/40',
+      normalBgLight: 'bg-[#FFCCD5] hover:bg-[#ffb3c1] border-[#FF85A1]/50',
+      textColorDark: 'text-[#FF85A1]',
+      textColorLight: 'text-[#8C1D40]'
+    },
+    { 
+      id: 'heladeria',
+      title: 'Heladería', 
+      subtitle: 'Potes, Bochas y Kilos',
+      desc: 'Grilla táctil para despacho de helados y sabores.', 
+      href: '/heladeria', 
+      icon: <IceCream className="w-5 h-5 text-[#D97706]" />,
+      badge: 'Venta',
+      normalBgDark: 'bg-[#FEF3C7]/25 hover:bg-[#FEF3C7]/35 border-[#F59E0B]/40',
+      normalBgLight: 'bg-[#FEF3C7] hover:bg-[#fde68a] border-[#F59E0B]/50',
+      textColorDark: 'text-[#FBBF24]',
+      textColorLight: 'text-[#B45309]'
+    },
+    { 
+      id: 'bar',
+      title: 'Bar / Comidas', 
+      subtitle: 'Tragos, Platos y Bebidas',
+      desc: 'Control de comandas de cocina y tragos del bar.', 
+      href: '/bar', 
+      icon: <UtensilsCrossed className="w-5 h-5 text-[#0D9488]" />,
+      badge: 'Venta',
+      normalBgDark: 'bg-[#CCFBF1]/25 hover:bg-[#CCFBF1]/35 border-[#14B8A6]/40',
+      normalBgLight: 'bg-[#CCFBF1] hover:bg-[#99f6e4] border-[#14B8A6]/50',
+      textColorDark: 'text-[#5EEAD4]',
+      textColorLight: 'text-[#0F766E]'
+    },
+    { 
+      id: 'almacen',
+      title: 'Almacén / Kiosko', 
+      subtitle: 'Gaseosas y Golosinas',
+      desc: 'Venta por unidad de productos en góndola o heladera.', 
+      href: '/almacen', 
+      icon: <Store className="w-5 h-5 text-[#7C3AED]" />,
+      badge: 'Venta',
+      normalBgDark: 'bg-[#EDE9FE]/25 hover:bg-[#EDE9FE]/35 border-[#8B5CF6]/40',
+      normalBgLight: 'bg-[#EDE9FE] hover:bg-[#ddd6fe] border-[#8B5CF6]/50',
+      textColorDark: 'text-[#C4B5FD]',
+      textColorLight: 'text-[#6D28D9]'
+    },
+    { 
+      id: 'delivery',
+      title: 'Pickers & Envíos', 
+      subtitle: 'PedidosYa, Rappi y Uber',
+      desc: 'Anotación manual de pedidos por plataformas y envíos rápidos.', 
+      href: '/delivery', 
+      icon: <Bike className="w-5 h-5 text-[#6B8E23]" />,
+      badge: 'Delivery',
+      normalBgDark: 'bg-[#EAF4DC]/25 hover:bg-[#EAF4DC]/35 border-[#6B8E23]/40',
+      normalBgLight: 'bg-[#EAF4DC] hover:bg-[#d8ecbe] border-[#6B8E23]/40',
+      textColorDark: 'text-[#C5E1A5]',
+      textColorLight: 'text-[#4A6B15]'
+    },
+    { 
+      id: 'mesas',
+      title: 'Control de Mesas', 
+      subtitle: 'Salón y Ocupación',
+      desc: 'Seguimiento de mesas activas e identificación rápida.', 
+      href: '/mesas', 
+      icon: <Users className="w-5 h-5 text-[#2563EB]" />,
+      badge: 'Salón',
+      normalBgDark: 'bg-[#DBEAFE]/25 hover:bg-[#DBEAFE]/35 border-[#3B82F6]/40',
+      normalBgLight: 'bg-[#DBEAFE] hover:bg-[#bfdbfe] border-[#3B82F6]/50',
+      textColorDark: 'text-[#93C5FD]',
+      textColorLight: 'text-[#1D4ED8]'
+    },
+    { 
+      id: 'proveedores',
+      title: 'Proveedores', 
+      subtitle: 'Control de Compras',
+      desc: 'Registro de ingresos de mercadería, facturas y distribuidores.', 
+      href: '/proveedores', 
+      icon: <Truck className="w-5 h-5 text-[#EA580C]" />,
+      badge: 'Compras',
+      normalBgDark: 'bg-[#FFEDD5]/25 hover:bg-[#FFEDD5]/35 border-[#F97316]/40',
+      normalBgLight: 'bg-[#FFEDD5] hover:bg-[#fed7aa] border-[#F97316]/50',
+      textColorDark: 'text-[#FDBA74]',
+      textColorLight: 'text-[#C2410C]'
+    },
+    { 
+      id: 'caja',
+      title: 'Caja del Día', 
+      subtitle: 'Arqueo Automático',
+      desc: 'Suma centralizada de las secciones de venta y cierres.', 
+      href: '/caja', 
+      icon: <DollarSign className="w-5 h-5 text-[#059669]" />,
+      badge: 'Control',
+      normalBgDark: 'bg-[#D1FAE5]/25 hover:bg-[#D1FAE5]/35 border-[#10B981]/40',
+      normalBgLight: 'bg-[#D1FAE5] hover:bg-[#a7f3d0] border-[#10B981]/50',
+      textColorDark: 'text-[#6EE7B7]',
+      textColorLight: 'text-[#047857]'
+    },
+    { 
+      id: 'inventario',
+      title: 'Stock General', 
+      subtitle: 'Insumos y Depósito',
+      desc: 'Control detallado de stock de mercadería.', 
+      href: '/inventario', 
+      icon: <Package className="w-5 h-5 text-[#475569]" />,
+      badge: 'Depósito',
+      normalBgDark: 'bg-stone-800/50 hover:bg-stone-800 border-stone-700',
+      normalBgLight: 'bg-[#F1F5F9] hover:bg-[#e2e8f0] border-[#64748B]/50',
+      textColorDark: 'text-stone-300',
+      textColorLight: 'text-[#334155]'
+    },
+  ]
+
+  const currentModule = modules.find(m => m.id === activeTab) || modules[0]
+
+  const isDark = theme.includes('dark')
+  const isMinimal = theme.includes('minimal')
+
+  const themeOptions = [
+    { id: 'minimal-light', label: 'Minimal (Light)' },
+    { id: 'minimal-dark', label: 'Minimal (Dark)' },
+    { id: 'normal-light', label: 'Normal (Light)' },
+    { id: 'normal-dark', label: 'Normal (Dark)' },
+  ] as const
+
+  return (
+    <main className={`min-h-screen font-sans p-4 md:p-8 flex flex-col justify-between transition-colors duration-300 ${
+      isDark ? 'bg-stone-950 text-stone-100' : 'bg-[#FAFAFA] text-stone-800'
+    }`}>
+      <div className="max-w-5xl mx-auto w-full">
+        
+        {/* Header */}
+        <header className={`flex flex-col sm:flex-row items-center justify-between px-6 py-4 rounded-2xl shadow-2xs border mb-6 gap-4 transition-colors duration-300 ${
+          isDark ? 'bg-stone-900 border-stone-800 text-stone-100' : 'bg-white border-stone-200/80 text-stone-900'
+        }`}>
+          <div className="flex items-center gap-3">
+            <div className={`p-2.5 rounded-xl ${isDark ? 'bg-stone-800 text-[#6B8E23]' : 'bg-[#EAF4DC] text-[#6B8E23]'}`}>
+              <Coffee className="w-5 h-5" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold tracking-tight flex items-center gap-2">
+                Emilia Café & Bar <span className={`text-xs font-normal ${isDark ? 'text-stone-500' : 'text-stone-400'}`}>| POS System</span>
+              </h1>
+              <p className={`text-xs ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>Panel de Control Unificado</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={() => setIsThemeOpen(!isThemeOpen)}
+                className={`text-xs font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-2 cursor-pointer shadow-2xs ${
+                  isDark 
+                    ? 'bg-stone-800 text-[#FFCCD5] border border-stone-700 hover:bg-stone-750' 
+                    : 'bg-stone-100 text-stone-700 border border-stone-200 hover:bg-stone-200'
+                }`}
+              >
+                <Palette className="w-3.5 h-3.5 text-[#6B8E23]" />
+                <span>Theme: {themeOptions.find(t => t.id === theme)?.label}</span>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isThemeOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {isThemeOpen && (
+                <div className={`absolute right-0 mt-2 w-44 rounded-2xl shadow-xl border py-1.5 z-50 ${
+                  isDark ? 'bg-stone-900 border-stone-800 text-stone-200' : 'bg-white border-stone-200 text-stone-800'
+                }`}>
+                  {themeOptions.map((opt) => (
+                    <button
+                      key={opt.id}
+                      onClick={() => {
+                        setTheme(opt.id)
+                        setIsThemeOpen(false)
+                      }}
+                      className={`w-full text-left px-4 py-2 text-xs font-medium transition cursor-pointer flex items-center justify-between ${
+                        theme === opt.id 
+                          ? (isDark ? 'bg-stone-800 text-[#6B8E23] font-bold' : 'bg-[#EAF4DC]/50 text-[#6B8E23] font-bold') 
+                          : (isDark ? 'hover:bg-stone-800/60' : 'hover:bg-stone-50')
+                      }`}
+                    >
+                      <span>{opt.label}</span>
+                      {theme === opt.id && <span className="w-1.5 h-1.5 rounded-full bg-[#6B8E23]"></span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full ${
+              isDark ? 'bg-stone-800 text-[#FFCCD5]' : 'bg-[#FFCCD5]/50 text-[#8C1D40]'
+            }`}>
+              <Sparkles className="w-3 h-3" />
+              9 Módulos
+            </span>
+          </div>
+        </header>
+
+        {/* CONTENEDOR MÓDULOS */}
+        {isMinimal ? (
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+              {modules.map((mod) => {
+                const isSelected = activeTab === mod.id
+                return (
+                  <button
+                    key={mod.id}
+                    onClick={() => setActiveTab(mod.id)}
+                    className={`text-left p-3.5 rounded-2xl border transition-all duration-200 flex flex-col justify-between h-28 cursor-pointer ${
+                      isSelected 
+                        ? (isDark ? 'bg-stone-800 border-[#6B8E23] ring-1 ring-[#6B8E23]/30' : 'bg-[#EAF4DC]/60 border-[#6B8E23] ring-1 ring-[#6B8E23]/20')
+                        : (isDark ? 'bg-stone-900 border-stone-800 hover:bg-stone-850' : 'bg-white border-stone-200 hover:border-stone-300 hover:bg-stone-50/50')
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className={`p-2 rounded-xl ${isSelected ? (isDark ? 'bg-stone-900' : 'bg-white shadow-2xs') : (isDark ? 'bg-stone-800' : 'bg-stone-100')}`}>
+                        {mod.icon}
+                      </div>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isSelected ? 'bg-[#FFCCD5] text-[#8C1D40]' : (isDark ? 'bg-stone-800 text-stone-400' : 'bg-stone-100 text-stone-600')}`}>
+                        {mod.badge}
+                      </span>
+                    </div>
+                    <div>
+                      <h3 className={`text-xs font-bold tracking-tight ${isDark ? 'text-stone-100' : 'text-stone-900'}`}>{mod.title}</h3>
+                      <p className={`text-[10px] truncate ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>{mod.subtitle}</p>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+
+            <div className={`border rounded-3xl p-6 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-6 transition-colors ${
+              isDark ? 'bg-stone-900 border-stone-800' : 'bg-white border-stone-200/80'
+            }`}>
+              <div className="space-y-1">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B8E23] bg-[#EAF4DC]/20 px-2.5 py-0.5 rounded-md">
+                  Módulo Seleccionado
+                </span>
+                <h2 className={`text-xl font-bold mt-2 ${isDark ? 'text-stone-100' : 'text-stone-900'}`}>{currentModule.title}</h2>
+                <p className={`text-xs max-w-lg leading-relaxed ${isDark ? 'text-stone-400' : 'text-stone-600'}`}>{currentModule.desc}</p>
+              </div>
+
+              <Link
+                href={currentModule.href}
+                className="bg-[#6B8E23] hover:bg-[#55731B] text-white text-xs font-bold px-6 py-3 rounded-2xl shadow-xs transition flex items-center gap-2 shrink-0"
+              >
+                <span>Abrir {currentModule.title}</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            {modules.map((mod) => {
+              const bgClass = isDark ? mod.normalBgDark : mod.normalBgLight
+              const textClass = isDark ? mod.textColorDark : mod.textColorLight
+
+              return (
+                <Link
+                  key={mod.id}
+                  href={mod.href}
+                  className={`${bgClass} border-2 p-5 rounded-3xl shadow-sm transition-all duration-300 hover:scale-[1.03] hover:shadow-md flex flex-col justify-between h-40 group`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className={`p-3 rounded-2xl shadow-2xs group-hover:rotate-6 transition-transform ${isDark ? 'bg-stone-900/60' : 'bg-white'}`}>
+                      {mod.icon}
+                    </div>
+                    <span className={`text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full shadow-2xs ${
+                      isDark ? 'bg-stone-900 text-stone-200 border border-stone-800' : 'bg-white/85 text-stone-900'
+                    }`}>
+                      {mod.badge}
+                    </span>
+                  </div>
+                  <div>
+                    <h3 className={`text-base font-extrabold ${textClass} tracking-tight`}>{mod.title}</h3>
+                    <p className={`text-xs font-medium mt-0.5 ${isDark ? 'text-stone-300/80' : 'text-stone-800/80'}`}>{mod.subtitle}</p>
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
+        )}
+
+        {/* ================= SECCIÓN DE EMI GATITA AUTOMÁTICA ================= */}
+        <div className={`mt-6 p-5 rounded-3xl border flex flex-col sm:flex-row items-center gap-6 transition-colors shadow-sm ${
+          isDark ? 'bg-stone-900/90 border-stone-800' : 'bg-white border-stone-200/90'
+        }`}>
+          <ChibiNekoEmi emotion={emiEmotion} isDark={isDark} />
+
+          <div className="flex-1 text-center sm:text-left w-full">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2 mb-2">
+              <div className="flex items-center gap-2">
+                <span className={`text-sm font-black tracking-tight ${isDark ? 'text-pink-400' : 'text-[#8C1D40]'}`}>
+                  Emi 🐾
+                </span>
+                <span className="text-[10px] bg-pink-100 text-pink-700 dark:bg-pink-950/60 dark:text-pink-300 font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 border border-pink-200 dark:border-pink-900">
+                  <Sparkle className="w-3 h-3" /> Neko Assistant (En vivo)
+                </span>
+              </div>
+              
+              <button
+                onClick={triggerRandomTalk}
+                className={`text-[11px] font-bold px-3 py-1.5 rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-2xs ${
+                  isDark 
+                    ? 'bg-stone-800 hover:bg-stone-750 text-pink-300 border border-stone-700' 
+                    : 'bg-pink-50 hover:bg-pink-100 text-[#8C1D40] border border-pink-200'
+                }`}
+              >
+                <Heart className="w-3.5 h-3.5 fill-pink-500 text-pink-500 animate-pulse" />
+                <span>¡Forzar cambio ya!</span>
+              </button>
+            </div>
+            
+            <div className={`p-4 rounded-2xl border transition-colors ${
+              isDark ? 'bg-stone-950/50 border-stone-800' : 'bg-stone-50 border-stone-200/60'
+            }`}>
+              <p className={`text-xs sm:text-sm leading-relaxed font-medium transition-opacity duration-200 ${
+                fadeAnim ? 'opacity-100' : 'opacity-0'
+              } ${isDark ? 'text-stone-300' : 'text-stone-700'}`}>
+                &ldquo;{emiMessage}&rdquo;
+              </p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <footer className="text-center text-xs opacity-50 mt-8">
+        Emilia POS &bull; Hecho a pulmón con código puro ⚡
+      </footer>
+    </main>
+  )
+}
+
+
+// --- FILE: C:\Users\mhmc\emilia-cafe.bar\src\app\almacen\page.tsx ---
+'use client'
+
+import { useEffect, useRef, useState } from 'react'
+import { ArrowLeft, Boxes, ChevronDown, DollarSign, Palette, Plus, Trash2 } from 'lucide-react'
+import Link from 'next/link'
+import { useSalesStore } from '@/store/salesStore'
+import { useShallow } from 'zustand/react/shallow'
+import SalesCheckout from '@/app/components/SalesCheckout'
+
+type ThemeMode = 'minimal-light' | 'minimal-dark' | 'normal-light' | 'normal-dark'
+
+const themeOptions = [
+  { id: 'minimal-light', label: 'Minimal (Light)' },
+  { id: 'minimal-dark', label: 'Minimal (Dark)' },
+  { id: 'normal-light', label: 'Normal (Light)' },
+  { id: 'normal-dark', label: 'Normal (Dark)' },
+] as const
+
+export default function AlmacenPage() {
+  const [theme, setTheme] = useState<ThemeMode>('normal-light')
+  const [isThemeOpen, setIsThemeOpen] = useState(false)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  const productCatalog = useSalesStore(useShallow((state) =>
+    state.products.filter((product) => product.active && product.sections.includes('almacen')),
+  ))
+  const sales = useSalesStore(useShallow((state) => state.getSectionSales('almacen')))
+  const removeSale = useSalesStore((state) => state.removeSale)
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('emilia_theme') as ThemeMode | null
+    if (savedTheme) setTheme(savedTheme)
+  }, [])
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsThemeOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const isDark = theme.includes('dark')
+
+  const handleThemeChange = (newTheme: ThemeMode) => {
+    setTheme(newTheme)
+    localStorage.setItem('emilia_theme', newTheme)
+    setIsThemeOpen(false)
+  }
+
+  const totalVentas = sales.reduce((acc, sale) => acc + sale.total, 0)
+
+  return (
+    <main className={`min-h-screen p-4 md:p-8 transition-colors duration-300 ${isDark ? 'bg-stone-950 text-stone-100' : 'bg-[#FAFAFA] text-stone-800'}`}>
+      <div className="mx-auto max-w-7xl">
+        <header className={`mb-6 flex flex-col gap-4 rounded-[28px] border px-5 py-4 shadow-sm md:flex-row md:items-center md:justify-between ${isDark ? 'border-stone-800 bg-stone-900' : 'border-stone-200/80 bg-white'}`}>
+          <div className="flex items-center gap-3">
+            <Link href="/" className={`rounded-xl p-2.5 transition ${isDark ? 'bg-stone-800 text-[#1D7A4B] hover:bg-stone-700' : 'bg-[#E7F7ED] text-[#1D7A4B] hover:bg-[#d4f0df]'}`} aria-label="Volver al inicio">
+              <ArrowLeft className="h-5 w-5" />
+            </Link>
+            <div>
+              <h1 className="text-lg font-bold tracking-tight">Almac�n</h1>
+              <p className={`text-xs ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>Kiosco conectado al stock compartido del inventario</p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-3">
+            <div className="relative" ref={dropdownRef}>
+              <button onClick={() => setIsThemeOpen((prev) => !prev)} className={`flex items-center gap-2 rounded-xl border px-3.5 py-2.5 text-xs font-bold transition ${isDark ? 'border-stone-700 bg-stone-800 text-[#A7F3D0] hover:bg-stone-700' : 'border-stone-200 bg-stone-100 text-stone-700 hover:bg-stone-200'}`}>
+                <Palette className="h-3.5 w-3.5 text-[#1D7A4B]" />
+                <span>Theme: {themeOptions.find((opt) => opt.id === theme)?.label}</span>
+                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isThemeOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {isThemeOpen && (
+                <div className={`absolute right-0 z-50 mt-2 w-44 rounded-2xl border py-1.5 shadow-xl ${isDark ? 'border-stone-800 bg-stone-900 text-stone-200' : 'border-stone-200 bg-white text-stone-800'}`}>
+                  {themeOptions.map((opt) => (
+                    <button key={opt.id} onClick={() => handleThemeChange(opt.id)} className={`flex w-full items-center justify-between px-4 py-2 text-left text-xs font-medium transition ${theme === opt.id ? (isDark ? 'bg-stone-800 text-[#A7F3D0]' : 'bg-[#E7F7ED] text-[#1D7A4B]') : (isDark ? 'hover:bg-stone-800/60' : 'hover:bg-stone-50')}`}>
+                      <span>{opt.label}</span>
+                      {theme === opt.id && <span className="h-1.5 w-1.5 rounded-full bg-[#1D7A4B]" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <button onClick={() => setIsModalOpen(true)} className="flex shrink-0 items-center gap-2 rounded-xl bg-[#1D7A4B] px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#145C3A]">
+              <Plus className="h-4 w-4" />
+              Registrar venta
+            </button>
+          </div>
+        </header>
+
+        <section className={`mb-6 grid gap-4 rounded-[28px] border p-5 md:grid-cols-3 ${isDark ? 'border-stone-800 bg-stone-900' : 'border-stone-200/80 bg-white'}`}>
+          <div className={`rounded-2xl border p-4 ${isDark ? 'border-stone-800 bg-stone-950' : 'border-stone-200 bg-[#E7F7ED]'}`}>
+            <div className="mb-3 flex items-center justify-between">
+              <span className={`text-xs font-semibold ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>Productos</span>
+              <div className={`rounded-xl p-2 ${isDark ? 'bg-stone-800 text-[#A7F3D0]' : 'bg-[#E7F7ED] text-[#1D7A4B]'}`}>
+                <Boxes className="h-4 w-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-black">{productCatalog.length}</p>
+          </div>
+          <div className={`rounded-2xl border p-4 ${isDark ? 'border-stone-800 bg-stone-950' : 'border-stone-200 bg-[#E7F7ED]'}`}>
+            <div className="mb-3 flex items-center justify-between">
+              <span className={`text-xs font-semibold ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>En stock</span>
+              <div className={`rounded-xl p-2 ${isDark ? 'bg-stone-800 text-[#A7F3D0]' : 'bg-[#E7F7ED] text-[#1D7A4B]'}`}>
+                <Boxes className="h-4 w-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-black">{productCatalog.reduce((sum, product) => sum + product.stock, 0).toLocaleString('es-AR')}</p>
+          </div>
+          <div className={`rounded-2xl border p-4 ${isDark ? 'border-stone-800 bg-stone-950' : 'border-stone-200 bg-[#E7F7ED]'}`}>
+            <div className="mb-3 flex items-center justify-between">
+              <span className={`text-xs font-semibold ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>Ventas</span>
+              <div className={`rounded-xl p-2 ${isDark ? 'bg-stone-800 text-[#A7F3D0]' : 'bg-[#E7F7ED] text-[#1D7A4B]'}`}>
+                <DollarSign className="h-4 w-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-black">${totalVentas.toLocaleString('es-AR')}</p>
+          </div>
+        </section>
+
+        <div className={`mb-6 rounded-[28px] border p-5 ${isDark ? 'border-stone-800 bg-stone-900' : 'border-stone-200/80 bg-white'}`}>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-bold">Stock disponible en kiosco</h2>
+            <Link href="/inventario" className="text-xs font-semibold text-[#1D7A4B] hover:underline">Editar cat�logo en Inventario</Link>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {productCatalog.map((product) => (
+              <div key={product.id} className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
+                <p className="font-bold">{product.name}</p>
+                <p className="text-xs text-stone-500">{product.category}</p>
+                <div className="mt-2 flex justify-between text-sm">
+                  <span>Stock: {product.stock} {product.unit}</span>
+                  <span className="font-bold">${(product.offerPrice ?? product.price).toLocaleString('es-AR')}</span>
+                </div>
+                {product.offerName && <p className="mt-1 text-xs font-semibold text-amber-700">{product.offerName}</p>}
+              </div>
+            ))}
+            {productCatalog.length === 0 && <p className="text-sm text-stone-500">No hay productos asignados al kiosco todav�a.</p>}
+          </div>
+        </div>
+
+        <div className={`rounded-[28px] border p-5 ${isDark ? 'border-stone-800 bg-stone-900' : 'border-stone-200/80 bg-white'}`}>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-bold">Movimientos de stock</h2>
+            <span className={`text-xs ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>Mercader�a</span>
+          </div>
+
+          <div className="space-y-3">
+            {sales.map((sale) => (
+              <div key={sale.id} className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 ${isDark ? 'border-stone-800 bg-stone-950' : 'border-stone-200 bg-[#FAF7FF]'}`}>
+                <div className="flex items-center gap-3">
+                  <div className={`rounded-xl p-2.5 ${isDark ? 'bg-stone-800 text-[#A7F3D0]' : 'bg-[#E7F7ED] text-[#1D7A4B]'}`}>
+                    <Boxes className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="font-bold">{sale.item}</p>
+                    <p className={`text-xs ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
+                      {sale.quantity} unidades � {sale.paymentAllocations?.map((allocation) => `${allocation.method} $${allocation.amount.toLocaleString('es-AR')}`).join(' + ') ?? sale.paymentMethod}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <p className="text-base font-black">${sale.total.toLocaleString('es-AR')}</p>
+                  <button onClick={() => removeSale(sale.id)} className={`rounded-xl p-2 transition ${isDark ? 'bg-stone-800 text-stone-200 hover:bg-stone-700' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}`} aria-label={`Eliminar venta de ${sale.item}`}>
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {isModalOpen && <SalesCheckout section="almacen" products={productCatalog} isDark={isDark} onClose={() => setIsModalOpen(false)} />}
+    </main>
+  )
+}
+
+
+
+// --- FILE: C:\Users\mhmc\emilia-cafe.bar\src\app\bar\page.tsx ---
+'use client'
+
+import { useEffect, useRef, useState } from 'react'
+import { ArrowLeft, Plus, Coffee, Trash2, Palette, ChevronDown, DollarSign, Package, Sparkles } from 'lucide-react'
+import Link from 'next/link'
+import { countSaleTickets, useSalesStore } from '@/store/salesStore'
+import { useShallow } from 'zustand/react/shallow'
+import SalesCheckout from '@/app/components/SalesCheckout'
+
+type ThemeMode = 'minimal-light' | 'minimal-dark' | 'normal-light' | 'normal-dark'
+
+const themeOptions = [
+  { id: 'minimal-light', label: 'Minimal (Light)' },
+  { id: 'minimal-dark', label: 'Minimal (Dark)' },
+  { id: 'normal-light', label: 'Normal (Light)' },
+  { id: 'normal-dark', label: 'Normal (Dark)' },
+] as const
+
+const normalizeCategory = (category: string) =>
+  category.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase()
+
+export default function BarPage() {
+  const [theme, setTheme] = useState<ThemeMode>('normal-light')
+  const [isThemeOpen, setIsThemeOpen] = useState(false)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  const productCatalog = useSalesStore(useShallow((state) =>
+    state.products.filter((product) => product.active && product.sections.includes('bar')),
+  ))
+  const sales = useSalesStore(useShallow((state) => state.getSectionSales('bar')))
+  const removeSale = useSalesStore((state) => state.removeSale)
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('emilia_theme') as ThemeMode | null
+    if (savedTheme) setTheme(savedTheme)
+  }, [])
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsThemeOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const isDark = theme.includes('dark')
+
+  const handleThemeChange = (newTheme: ThemeMode) => {
+    setTheme(newTheme)
+    localStorage.setItem('emilia_theme', newTheme)
+    setIsThemeOpen(false)
+  }
+
+  const totalVentas = sales.reduce((acc, sale) => acc + sale.total, 0)
+  const tickets = countSaleTickets(sales)
+  const promedio = tickets > 0 ? totalVentas / tickets : 0
+  const ventasPorProducto = sales.reduce<Record<string, number>>((acc, sale) => {
+    acc[sale.item] = (acc[sale.item] ?? 0) + sale.quantity
+    return acc
+  }, {})
+  const topProduct = Object.entries(ventasPorProducto).sort((a, b) => b[1] - a[1])[0]
+  const foodProducts = productCatalog.filter((product) => normalizeCategory(product.category) !== 'bebidas')
+  const drinkProducts = productCatalog.filter((product) => normalizeCategory(product.category) === 'bebidas')
+
+  return (
+    <main className={`min-h-screen p-4 md:p-8 transition-colors duration-300 ${isDark ? 'bg-stone-950 text-stone-100' : 'bg-[#FAFAFA] text-stone-800'}`}>
+      <div className="mx-auto max-w-7xl">
+        <header className={`mb-6 flex flex-col gap-4 rounded-[28px] border px-5 py-4 shadow-sm md:flex-row md:items-center md:justify-between ${isDark ? 'border-stone-800 bg-stone-900' : 'border-stone-200/80 bg-white'}`}>
+          <div className="flex items-center gap-3">
+            <Link href="/" className={`rounded-xl p-2.5 transition ${isDark ? 'bg-stone-800 text-[#8C1D40] hover:bg-stone-700' : 'bg-[#FDECEF] text-[#8C1D40] hover:bg-[#F9D6DE]'}`} aria-label="Volver al inicio">
+              <ArrowLeft className="h-5 w-5" />
+            </Link>
+            <div>
+              <h1 className="flex items-center gap-2 text-lg font-bold tracking-tight">
+                Bar Emilia
+                <span className={`text-xs font-medium ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
+                  | barra y tragos
+                </span>
+              </h1>
+              <p className={`text-xs ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>Carta editable de men� del d�a y bebidas</p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-3">
+            <div className="relative" ref={dropdownRef}>
+              <button onClick={() => setIsThemeOpen((prev) => !prev)} className={`flex items-center gap-2 rounded-xl border px-3.5 py-2.5 text-xs font-bold transition ${isDark ? 'border-stone-700 bg-stone-800 text-[#F9D6DE] hover:bg-stone-700' : 'border-stone-200 bg-stone-100 text-stone-700 hover:bg-stone-200'}`}>
+                <Palette className="h-3.5 w-3.5 text-[#8C1D40]" />
+                <span>Theme: {themeOptions.find((opt) => opt.id === theme)?.label}</span>
+                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isThemeOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {isThemeOpen && (
+                <div className={`absolute right-0 z-50 mt-2 w-44 rounded-2xl border py-1.5 shadow-xl ${isDark ? 'border-stone-800 bg-stone-900 text-stone-200' : 'border-stone-200 bg-white text-stone-800'}`}>
+                  {themeOptions.map((opt) => (
+                    <button key={opt.id} onClick={() => handleThemeChange(opt.id)} className={`flex w-full items-center justify-between px-4 py-2 text-left text-xs font-medium transition ${theme === opt.id ? (isDark ? 'bg-stone-800 text-[#F9D6DE]' : 'bg-[#FDECEF] text-[#8C1D40]') : (isDark ? 'hover:bg-stone-800/60' : 'hover:bg-stone-50')}`}>
+                      <span>{opt.label}</span>
+                      {theme === opt.id && <span className="h-1.5 w-1.5 rounded-full bg-[#8C1D40]" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <Link href="/inventario" className={`flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-bold transition ${isDark ? 'border-stone-700 text-[#F9D6DE] hover:bg-stone-800' : 'border-stone-200 text-[#8C1D40] hover:bg-[#FFF7F8]'}`}>
+              Editar carta
+            </Link>
+            <button onClick={() => setIsModalOpen(true)} className="flex shrink-0 items-center gap-2 rounded-xl bg-[#8C1D40] px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#6F1632]">
+              <Plus className="h-4 w-4" />
+              Registrar venta
+            </button>
+          </div>
+        </header>
+
+        <section className={`mb-6 grid gap-4 rounded-[28px] border p-5 md:grid-cols-4 ${isDark ? 'border-stone-800 bg-stone-900' : 'border-stone-200/80 bg-white'}`}>
+          <div className={`rounded-2xl border p-4 ${isDark ? 'border-stone-800 bg-stone-950' : 'border-stone-200 bg-[#FFF7F8]'}`}>
+            <div className="mb-3 flex items-center justify-between">
+              <span className={`text-xs font-semibold ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>Ventas del d�a</span>
+              <div className={`rounded-xl p-2 ${isDark ? 'bg-stone-800 text-[#F9D6DE]' : 'bg-[#FDECEF] text-[#8C1D40]'}`}>
+                <DollarSign className="h-4 w-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-black">${totalVentas.toLocaleString('es-AR')}</p>
+          </div>
+
+          <div className={`rounded-2xl border p-4 ${isDark ? 'border-stone-800 bg-stone-950' : 'border-stone-200 bg-[#FFF7F8]'}`}>
+            <div className="mb-3 flex items-center justify-between">
+              <span className={`text-xs font-semibold ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>Tickets</span>
+              <div className={`rounded-xl p-2 ${isDark ? 'bg-stone-800 text-[#F9D6DE]' : 'bg-[#FDECEF] text-[#8C1D40]'}`}>
+                <Package className="h-4 w-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-black">{tickets}</p>
+          </div>
+
+          <div className={`rounded-2xl border p-4 ${isDark ? 'border-stone-800 bg-stone-950' : 'border-stone-200 bg-[#FFF7F8]'}`}>
+            <div className="mb-3 flex items-center justify-between">
+              <span className={`text-xs font-semibold ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>Promedio</span>
+              <div className={`rounded-xl p-2 ${isDark ? 'bg-stone-800 text-[#F9D6DE]' : 'bg-[#FDECEF] text-[#8C1D40]'}`}>
+                <Sparkles className="h-4 w-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-black">${Math.round(promedio).toLocaleString('es-AR')}</p>
+          </div>
+
+          <div className={`rounded-2xl border p-4 ${isDark ? 'border-stone-800 bg-stone-950' : 'border-stone-200 bg-[#FFF7F8]'}`}>
+            <div className="mb-3 flex items-center justify-between">
+              <span className={`text-xs font-semibold ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>M�s vendido</span>
+              <div className={`rounded-xl p-2 ${isDark ? 'bg-stone-800 text-[#F9D6DE]' : 'bg-[#FDECEF] text-[#8C1D40]'}`}>
+                <Coffee className="h-4 w-4" />
+              </div>
+            </div>
+            <p className="text-lg font-black">{topProduct ? `${topProduct[0]} (${topProduct[1]})` : 'Sin ventas'}</p>
+          </div>
+        </section>
+
+        <section className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
+          <div className={`rounded-[28px] border p-5 ${isDark ? 'border-stone-800 bg-stone-900' : 'border-stone-200/80 bg-white'}`}>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold">�ltimos movimientos</h2>
+              <span className={`text-xs ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>Barra y tragos</span>
+            </div>
+
+            <div className="space-y-3">
+              {sales.map((sale) => (
+                <div key={sale.id} className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 ${isDark ? 'border-stone-800 bg-stone-950' : 'border-stone-200 bg-[#FFFDFD]'}`}>
+                  <div className="flex items-center gap-3">
+                    <div className={`rounded-xl p-2.5 ${isDark ? 'bg-stone-800 text-[#F9D6DE]' : 'bg-[#FDECEF] text-[#8C1D40]'}`}>
+                      <Coffee className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="font-bold">{sale.item}</p>
+                      <p className={`text-xs ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
+                        {sale.quantity} unidades � {new Date(sale.createdAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Argentina/Buenos_Aires' })}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <p className="text-base font-black">${sale.total.toLocaleString('es-AR')}</p>
+                    <button onClick={() => removeSale(sale.id)} className={`rounded-xl p-2 transition ${isDark ? 'bg-stone-800 text-stone-200 hover:bg-stone-700' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}`} aria-label={`Eliminar venta de ${sale.item}`}>
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <aside className={`rounded-[28px] border p-5 ${isDark ? 'border-stone-800 bg-stone-900' : 'border-stone-200/80 bg-white'}`}>
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold">Carta del bar</h2>
+                <p className={`mt-1 text-xs ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>Los productos y precios se editan desde Inventario.</p>
+              </div>
+              <Link href="/inventario" className="shrink-0 text-xs font-semibold text-[#8C1D40] hover:underline">Administrar</Link>
+            </div>
+            <div className="grid gap-5 md:grid-cols-2">
+              {[
+                { title: 'Comidas', products: foodProducts },
+                { title: 'Bebidas', products: drinkProducts },
+              ].map((category) => (
+                <section key={category.title}>
+                  <h3 className={`mb-2 border-b pb-2 text-sm font-bold ${isDark ? 'border-stone-800 text-[#F9D6DE]' : 'border-stone-200 text-[#8C1D40]'}`}>{category.title}</h3>
+                  <div className="space-y-3">
+                    {category.products.map((product) => {
+                const sold = sales.filter((sale) => sale.productId === product.id).reduce((acc, sale) => acc + sale.quantity, 0)
+                return (
+                  <div key={product.id} className={`rounded-2xl border p-3 ${isDark ? 'border-stone-800 bg-stone-950' : 'border-stone-200 bg-[#FFF8F9]'}`}>
+                    <div className="mb-2 flex items-center justify-between">
+                      <div>
+                        <span className="font-semibold">{product.name}</span>
+                        {product.offerName && <p className="mt-0.5 text-xs font-semibold text-amber-600">{product.offerName}</p>}
+                      </div>
+                      <span className={`text-sm font-bold ${isDark ? 'text-stone-200' : 'text-stone-800'}`}>${(product.offerPrice ?? product.price).toLocaleString('es-AR')}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className={isDark ? 'text-stone-400' : 'text-stone-500'}>Vendidos</span>
+                      <span className="font-bold">{sold}</span>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between text-xs">
+                      <span className={isDark ? 'text-stone-400' : 'text-stone-500'}>Stock compartido</span>
+                      <span className={`font-bold ${product.stock <= 5 ? 'text-amber-500' : 'text-emerald-500'}`}>{product.stock} {product.unit}</span>
+                    </div>
+                  </div>
+                )
+                    })}
+                    {category.products.length === 0 && <p className={`rounded-xl p-3 text-xs ${isDark ? 'bg-stone-950 text-stone-400' : 'bg-stone-50 text-stone-500'}`}>Sin productos en esta categor�a.</p>}
+                  </div>
+                </section>
+              ))}
+              {productCatalog.length === 0 && <div className={`md:col-span-2 rounded-2xl border border-dashed p-5 text-center ${isDark ? 'border-stone-700 text-stone-300' : 'border-stone-300 text-stone-600'}`}><p className="font-semibold">La carta todav�a est� vac�a.</p><p className="mt-1 text-xs">Desde Inventario agreg� productos y asignales la secci�n Bar; los que tengan categor�a �Bebidas� aparecer�n en esta columna.</p><Link href="/inventario" className="mt-3 inline-block rounded-xl bg-[#8C1D40] px-3 py-2 text-xs font-bold text-white">Crear carta</Link></div>}
+            </div>
+          </aside>
+        </section>
+      </div>
+
+      {isModalOpen && <SalesCheckout section="bar" products={productCatalog} isDark={isDark} onClose={() => setIsModalOpen(false)} />}
+    </main>
+  )
+}
+
+
+
+// --- FILE: C:\Users\mhmc\emilia-cafe.bar\src\app\cafeteria\page.tsx ---
+'use client'
+
+import { useEffect, useRef, useState } from 'react'
+import { ArrowLeft, Plus, Coffee, Trash2, Palette, ChevronDown, DollarSign, Package, Sparkles } from 'lucide-react'
+import Link from 'next/link'
+import { countSaleTickets, useSalesStore } from '@/store/salesStore'
+import { useShallow } from 'zustand/react/shallow'
+import SalesCheckout from '@/app/components/SalesCheckout'
+
+type ThemeMode = 'minimal-light' | 'minimal-dark' | 'normal-light' | 'normal-dark'
+
+const themeOptions = [
+  { id: 'minimal-light', label: 'Minimal (Light)' },
+  { id: 'minimal-dark', label: 'Minimal (Dark)' },
+  { id: 'normal-light', label: 'Normal (Light)' },
+  { id: 'normal-dark', label: 'Normal (Dark)' },
+] as const
+
+export default function CafeteriaPage() {
+  const [theme, setTheme] = useState<ThemeMode>('normal-light')
+  const [isThemeOpen, setIsThemeOpen] = useState(false)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  const productCatalog = useSalesStore(useShallow((state) =>
+    state.products.filter((product) => product.active && product.sections.includes('cafeteria')),
+  ))
+  const sales = useSalesStore(useShallow((state) => state.getSectionSales('cafeteria')))
+  const removeSale = useSalesStore((state) => state.removeSale)
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('emilia_theme') as ThemeMode | null
+    if (savedTheme) {
+      setTheme(savedTheme)
+    }
+  }, [])
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsThemeOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const isDark = theme.includes('dark')
+
+  const handleThemeChange = (newTheme: ThemeMode) => {
+    setTheme(newTheme)
+    localStorage.setItem('emilia_theme', newTheme)
+    setIsThemeOpen(false)
+  }
+
+  const totalVentas = sales.reduce((acc, sale) => acc + sale.total, 0)
+  const tickets = countSaleTickets(sales)
+  const promedioTicket = tickets > 0 ? totalVentas / tickets : 0
+  const productoMasVendido = sales.reduce<Record<string, number>>((acc, sale) => {
+    acc[sale.item] = (acc[sale.item] ?? 0) + sale.quantity
+    return acc
+  }, {})
+  const topProduct = Object.entries(productoMasVendido).sort((a, b) => b[1] - a[1])[0]
+
+  return (
+    <main
+      className={`min-h-screen p-4 md:p-8 transition-colors duration-300 ${
+        isDark ? 'bg-stone-950 text-stone-100' : 'bg-[#FAFAFA] text-stone-800'
+      }`}
+    >
+      <div className="mx-auto max-w-7xl">
+        <header
+          className={`mb-6 flex flex-col gap-4 rounded-[28px] border px-5 py-4 shadow-sm md:flex-row md:items-center md:justify-between ${
+            isDark ? 'border-stone-800 bg-stone-900' : 'border-stone-200/80 bg-white'
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <Link
+              href="/"
+              className={`rounded-xl p-2.5 transition ${
+                isDark ? 'bg-stone-800 text-[#8C1D40] hover:bg-stone-700' : 'bg-[#FDECEF] text-[#8C1D40] hover:bg-[#F9D6DE]'
+              }`}
+              aria-label="Volver al inicio"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Link>
+
+            <div>
+              <h1 className="flex items-center gap-2 text-lg font-bold tracking-tight">
+                Cafeter�a Emilia
+                <span className={`text-xs font-medium ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
+                  | Barra del d�a
+                </span>
+              </h1>
+              <p className={`text-xs ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
+                Control de ventas, caja y productos de la barra
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-3">
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={() => setIsThemeOpen((prev) => !prev)}
+                className={`flex items-center gap-2 rounded-xl border px-3.5 py-2.5 text-xs font-bold transition ${
+                  isDark
+                    ? 'border-stone-700 bg-stone-800 text-[#F9D6DE] hover:bg-stone-700'
+                    : 'border-stone-200 bg-stone-100 text-stone-700 hover:bg-stone-200'
+                }`}
+              >
+                <Palette className="h-3.5 w-3.5 text-[#8C1D40]" />
+                <span>Theme: {themeOptions.find((opt) => opt.id === theme)?.label}</span>
+                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isThemeOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {isThemeOpen && (
+                <div
+                  className={`absolute right-0 z-50 mt-2 w-44 rounded-2xl border py-1.5 shadow-xl ${
+                    isDark ? 'border-stone-800 bg-stone-900 text-stone-200' : 'border-stone-200 bg-white text-stone-800'
+                  }`}
+                >
+                  {themeOptions.map((opt) => (
+                    <button
+                      key={opt.id}
+                      onClick={() => handleThemeChange(opt.id)}
+                      className={`flex w-full items-center justify-between px-4 py-2 text-left text-xs font-medium transition ${
+                        theme === opt.id
+                          ? isDark
+                            ? 'bg-stone-800 text-[#F9D6DE]'
+                            : 'bg-[#FDECEF] text-[#8C1D40]'
+                          : isDark
+                            ? 'hover:bg-stone-800/60'
+                            : 'hover:bg-stone-50'
+                      }`}
+                    >
+                      <span>{opt.label}</span>
+                      {theme === opt.id && <span className="h-1.5 w-1.5 rounded-full bg-[#8C1D40]" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="flex shrink-0 items-center gap-2 rounded-xl bg-[#8C1D40] px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#6F1632]"
+            >
+              <Plus className="h-4 w-4" />
+              Registrar venta
+            </button>
+          </div>
+        </header>
+
+        <section
+          className={`mb-6 grid gap-4 rounded-[28px] border p-5 md:grid-cols-4 ${
+            isDark ? 'border-stone-800 bg-stone-900' : 'border-stone-200/80 bg-white'
+          }`}
+        >
+          <div className={`rounded-2xl border p-4 ${isDark ? 'border-stone-800 bg-stone-950' : 'border-stone-200 bg-[#FFF7F8]'}`}>
+            <div className="mb-3 flex items-center justify-between">
+              <span className={`text-xs font-semibold ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>Ventas del d�a</span>
+              <div className={`rounded-xl p-2 ${isDark ? 'bg-stone-800 text-[#F9D6DE]' : 'bg-[#FDECEF] text-[#8C1D40]'}`}>
+                <DollarSign className="h-4 w-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-black">${totalVentas.toLocaleString('es-AR')}</p>
+          </div>
+
+          <div className={`rounded-2xl border p-4 ${isDark ? 'border-stone-800 bg-stone-950' : 'border-stone-200 bg-[#FFF7F8]'}`}>
+            <div className="mb-3 flex items-center justify-between">
+              <span className={`text-xs font-semibold ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>Tickets</span>
+              <div className={`rounded-xl p-2 ${isDark ? 'bg-stone-800 text-[#F9D6DE]' : 'bg-[#FDECEF] text-[#8C1D40]'}`}>
+                <Package className="h-4 w-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-black">{tickets}</p>
+          </div>
+
+          <div className={`rounded-2xl border p-4 ${isDark ? 'border-stone-800 bg-stone-950' : 'border-stone-200 bg-[#FFF7F8]'}`}>
+            <div className="mb-3 flex items-center justify-between">
+              <span className={`text-xs font-semibold ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>Promedio</span>
+              <div className={`rounded-xl p-2 ${isDark ? 'bg-stone-800 text-[#F9D6DE]' : 'bg-[#FDECEF] text-[#8C1D40]'}`}>
+                <Sparkles className="h-4 w-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-black">${Math.round(promedioTicket).toLocaleString('es-AR')}</p>
+          </div>
+
+          <div className={`rounded-2xl border p-4 ${isDark ? 'border-stone-800 bg-stone-950' : 'border-stone-200 bg-[#FFF7F8]'}`}>
+            <div className="mb-3 flex items-center justify-between">
+              <span className={`text-xs font-semibold ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>M�s vendido</span>
+              <div className={`rounded-xl p-2 ${isDark ? 'bg-stone-800 text-[#F9D6DE]' : 'bg-[#FDECEF] text-[#8C1D40]'}`}>
+                <Coffee className="h-4 w-4" />
+              </div>
+            </div>
+            <p className="text-lg font-black">{topProduct ? `${topProduct[0]} (${topProduct[1]})` : 'Sin ventas'}</p>
+          </div>
+        </section>
+
+        <section className="grid gap-6 lg:grid-cols-[1.5fr_0.9fr]">
+          <div
+            className={`rounded-[28px] border p-5 ${
+              isDark ? 'border-stone-800 bg-stone-900' : 'border-stone-200/80 bg-white'
+            }`}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold">�ltimos movimientos</h2>
+              <span className={`text-xs ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>Barra y pasteler�a</span>
+            </div>
+
+            <div className="space-y-3">
+              {sales.map((sale) => (
+                <div
+                  key={sale.id}
+                  className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 ${
+                    isDark ? 'border-stone-800 bg-stone-950' : 'border-stone-200 bg-[#FFFDFD]'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`rounded-xl p-2.5 ${isDark ? 'bg-stone-800 text-[#F9D6DE]' : 'bg-[#FDECEF] text-[#8C1D40]'}`}>
+                      <Coffee className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="font-bold">{sale.item}</p>
+                      <p className={`text-xs ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
+                        {sale.quantity} unidades � {new Date(sale.createdAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Argentina/Buenos_Aires' })}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <p className="text-base font-black">${sale.total.toLocaleString('es-AR')}</p>
+                    <button
+                      onClick={() => removeSale(sale.id)}
+                      className={`rounded-xl p-2 transition ${
+                        isDark ? 'bg-stone-800 text-stone-200 hover:bg-stone-700' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                      }`}
+                      aria-label={`Eliminar venta de ${sale.item}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <aside
+            className={`rounded-[28px] border p-5 ${
+              isDark ? 'border-stone-800 bg-stone-900' : 'border-stone-200/80 bg-white'
+            }`}
+          >
+            <h2 className="mb-4 text-lg font-bold">Stock de la barra</h2>
+
+            <div className="space-y-3">
+              {productCatalog.map((product) => {
+                const sold = sales.filter((sale) => sale.productId === product.id).reduce((acc, sale) => acc + sale.quantity, 0)
+
+                return (
+                  <div
+                    key={product.id}
+                    className={`rounded-2xl border p-3 ${
+                      isDark ? 'border-stone-800 bg-stone-950' : 'border-stone-200 bg-[#FFF8F9]'
+                    }`}
+                  >
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="font-semibold">{product.name}</span>
+                      <span className={`text-xs ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
+                        ${product.offerPrice?.toLocaleString('es-AR') ?? product.price.toLocaleString('es-AR')}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className={isDark ? 'text-stone-400' : 'text-stone-500'}>Vendidos</span>
+                      <span className="font-bold">{sold}</span>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between text-xs">
+                      <span className={isDark ? 'text-stone-400' : 'text-stone-500'}>Stock</span>
+                      <span className={`font-bold ${product.stock > 4 ? 'text-emerald-500' : 'text-amber-500'}`}>{product.stock} {product.unit}</span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </aside>
+        </section>
+      </div>
+
+      {isModalOpen && <SalesCheckout section="cafeteria" products={productCatalog} isDark={isDark} onClose={() => setIsModalOpen(false)} />}
+    </main>
+  )
+}
+
+
+
+// --- FILE: C:\Users\mhmc\emilia-cafe.bar\src\app\caja\page.tsx ---
+'use client'
+
+import Link from 'next/link'
+import { ArrowLeft, Banknote, CreditCard, DollarSign, PiggyBank, TrendingUp, Wallet } from 'lucide-react'
+import { useSalesStore, type PaymentMethod, type SalesSection } from '@/store/salesStore'
+import { useShallow } from 'zustand/react/shallow'
+
+const sectionLabels: Record<SalesSection, string> = {
+  cafeteria: 'Cafetería',
+  heladeria: 'Heladería',
+  bar: 'Bar',
+  inventario: 'Inventario',
+  mesas: 'Mesas',
+  almacen: 'Almacén',
+  delivery: 'Delivery',
+}
+
+const paymentIcons: Record<PaymentMethod, typeof Wallet> = {
+  Efectivo: Wallet,
+  Tarjeta: CreditCard,
+  Débito: CreditCard,
+  Transferencia: Banknote,
+  'Mercado Pago': PiggyBank,
+}
+
+export default function CajaPage() {
+  const sales = useSalesStore((state) => state.sales)
+  const totalsBySection = useSalesStore(useShallow((state) => state.getTotalsBySection()))
+  const paymentTotals = useSalesStore(useShallow((state) => state.getPaymentTotals()))
+
+  const totalGeneral = Object.values(totalsBySection).reduce((sum, value) => sum + value, 0)
+  const totalPagos = Object.values(paymentTotals).reduce((sum, value) => sum + value, 0)
+
+  return (
+    <main className="min-h-screen bg-[#FAFAFA] p-4 text-stone-800 md:p-8">
+      <div className="mx-auto max-w-6xl">
+        <header className="mb-6 flex items-center justify-between rounded-[28px] border border-stone-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-3">
+            <Link href="/" className="rounded-xl bg-[#EAF4DC] p-2.5 text-[#6B8E23] transition hover:bg-[#d8ecbe]">
+              <ArrowLeft className="h-5 w-5" />
+            </Link>
+            <div>
+              <h1 className="text-lg font-bold tracking-tight">Caja del día</h1>
+              <p className="text-xs text-stone-500">Arqueo y consolidado general</p>
+            </div>
+          </div>
+        </header>
+
+        <section className="mb-6 grid gap-4 md:grid-cols-4">
+          <div className="rounded-[24px] border border-stone-200 bg-white p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-xs font-semibold text-stone-500">Total general</span>
+              <DollarSign className="h-4 w-4 text-[#6B8E23]" />
+            </div>
+            <p className="text-2xl font-black">${totalGeneral.toLocaleString('es-AR')}</p>
+          </div>
+          <div className="rounded-[24px] border border-stone-200 bg-white p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-xs font-semibold text-stone-500">Movimientos</span>
+              <TrendingUp className="h-4 w-4 text-[#6B8E23]" />
+            </div>
+            <p className="text-2xl font-black">{sales.length}</p>
+          </div>
+          <div className="rounded-[24px] border border-stone-200 bg-white p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-xs font-semibold text-stone-500">Efectivo</span>
+              <Wallet className="h-4 w-4 text-[#6B8E23]" />
+            </div>
+            <p className="text-2xl font-black">${paymentTotals.Efectivo.toLocaleString('es-AR')}</p>
+          </div>
+          <div className="rounded-[24px] border border-stone-200 bg-white p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-xs font-semibold text-stone-500">Tarjetas crédito y débito</span>
+              <CreditCard className="h-4 w-4 text-[#6B8E23]" />
+            </div>
+            <p className="text-2xl font-black">${(paymentTotals.Tarjeta + paymentTotals.Débito).toLocaleString('es-AR')}</p>
+          </div>
+        </section>
+
+        <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+          <div className="rounded-[28px] border border-stone-200 bg-white p-5 shadow-sm">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold">Resumen por sección</h2>
+              <span className="text-xs text-stone-500">Suma de ventas</span>
+            </div>
+
+            <div className="space-y-3">
+              {Object.entries(sectionLabels).map(([key, label]) => {
+                const sectionKey = key as SalesSection
+                const amount = totalsBySection[sectionKey]
+
+                return (
+                  <div key={sectionKey} className="flex items-center justify-between rounded-2xl border border-stone-200 bg-[#FAFAF9] px-4 py-3">
+                    <div>
+                      <p className="font-semibold">{label}</p>
+                      <p className="text-xs text-stone-500">{sales.filter((sale) => sale.section === sectionKey).length} movimientos</p>
+                    </div>
+                    <p className="text-lg font-black">${amount.toLocaleString('es-AR')}</p>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="rounded-[28px] border border-stone-200 bg-white p-5 shadow-sm">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold">Cobros por método</h2>
+              <span className="text-xs text-stone-500">Total {totalPagos.toLocaleString('es-AR')}</span>
+            </div>
+
+            <div className="space-y-3">
+              {(Object.keys(paymentTotals) as PaymentMethod[]).map((method) => {
+                const Icon = paymentIcons[method]
+                return (
+                  <div key={method} className="flex items-center justify-between rounded-2xl border border-stone-200 bg-[#FAFAF9] px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-xl bg-[#EAF4DC] p-2 text-[#6B8E23]">
+                        <Icon className="h-4 w-4" />
+                      </div>
+                      <span className="font-medium">{method}</span>
+                    </div>
+                    <span className="font-black">${paymentTotals[method].toLocaleString('es-AR')}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  )
+}
+
+
+
+// --- FILE: C:\Users\mhmc\emilia-cafe.bar\src\app\delivery\page.tsx ---
+'use client'
+
+import { useEffect, useRef, useState } from 'react'
+import { ArrowLeft, Bike, ChevronDown, DollarSign, Palette, Plus, Trash2 } from 'lucide-react'
+import Link from 'next/link'
+import { useSalesStore } from '@/store/salesStore'
+import { useShallow } from 'zustand/react/shallow'
+import SalesCheckout from '@/app/components/SalesCheckout'
+
+type ThemeMode = 'minimal-light' | 'minimal-dark' | 'normal-light' | 'normal-dark'
+type PlatformKey = 'pedidosya' | 'rappi' | 'uber'
+
+const themeOptions = [
+  { id: 'minimal-light', label: 'Minimal (Light)' },
+  { id: 'minimal-dark', label: 'Minimal (Dark)' },
+  { id: 'normal-light', label: 'Normal (Light)' },
+  { id: 'normal-dark', label: 'Normal (Dark)' },
+] as const
+
+const platformLabels: Record<PlatformKey, string> = {
+  pedidosya: 'PedidosYa',
+  rappi: 'Rappi',
+  uber: 'Uber Eats',
+}
+
+export default function DeliveryPage() {
+  const [theme, setTheme] = useState<ThemeMode>('normal-light')
+  const [isThemeOpen, setIsThemeOpen] = useState(false)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [selectedPlatform, setSelectedPlatform] = useState<PlatformKey>('pedidosya')
+  const [clientName, setClientName] = useState('')
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  const productCatalog = useSalesStore(useShallow((state) =>
+    state.products.filter((product) => product.active && product.sections.includes('delivery')),
+  ))
+  const sales = useSalesStore(useShallow((state) => state.getSectionSales('delivery')))
+  const removeSale = useSalesStore((state) => state.removeSale)
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('emilia_theme') as ThemeMode | null
+    if (savedTheme) setTheme(savedTheme)
+  }, [])
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsThemeOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const isDark = theme.includes('dark')
+
+  const handleThemeChange = (newTheme: ThemeMode) => {
+    setTheme(newTheme)
+    localStorage.setItem('emilia_theme', newTheme)
+    setIsThemeOpen(false)
+  }
+
+  const totalsByPlatform = (['pedidosya', 'rappi', 'uber'] as PlatformKey[]).reduce(
+    (acc, platform) => {
+      acc[platform] = sales
+        .filter((sale) => sale.item.startsWith(`${platformLabels[platform]} �`))
+        .reduce((sum, sale) => sum + sale.total, 0)
+      return acc
+    },
+    { pedidosya: 0, rappi: 0, uber: 0 } as Record<PlatformKey, number>,
+  )
+
+  const granTotalGeneral = Object.values(totalsByPlatform).reduce((sum, value) => sum + value, 0)
+
+  return (
+    <main className={`min-h-screen font-sans p-4 md:p-8 flex flex-col justify-between transition-colors duration-300 ${isDark ? 'bg-stone-950 text-stone-100' : 'bg-[#FAFAFA] text-stone-800'}`}>
+      <div className="mx-auto w-full max-w-7xl">
+        <header className={`mb-6 flex flex-col gap-4 rounded-2xl border px-6 py-4 shadow-sm transition-colors duration-300 md:flex-row md:items-center md:justify-between ${isDark ? 'border-stone-800 bg-stone-900 text-stone-100' : 'bg-white border-stone-200/80 text-stone-900'}`}>
+          <div className="flex items-center gap-3">
+            <Link href="/" className={`rounded-xl p-2.5 transition ${isDark ? 'bg-stone-800 text-[#6B8E23] hover:bg-stone-700' : 'bg-[#EAF4DC] text-[#6B8E23] hover:bg-[#d8ecbe]'}`}>
+              <ArrowLeft className="h-5 w-5" />
+            </Link>
+            <div>
+              <h1 className="flex items-center gap-2 text-lg font-bold tracking-tight">
+                Control de Ventas por Delivery
+                <span className={`text-xs font-normal ${isDark ? 'text-stone-500' : 'text-stone-400'}`}>| Caja del D�a</span>
+              </h1>
+              <p className={`text-xs ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>Carga manual por plataforma y consolidado de ingresos</p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-3">
+            <div className="relative" ref={dropdownRef}>
+              <button onClick={() => setIsThemeOpen((prev) => !prev)} className={`flex items-center gap-2 rounded-xl border px-3.5 py-2.5 text-xs font-bold transition ${isDark ? 'border-stone-700 bg-stone-800 text-[#C5E1A5] hover:bg-stone-700' : 'border-stone-200 bg-stone-100 text-stone-700 hover:bg-stone-200'}`}>
+                <Palette className="h-3.5 w-3.5 text-[#6B8E23]" />
+                <span>Theme: {themeOptions.find((opt) => opt.id === theme)?.label}</span>
+                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isThemeOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {isThemeOpen && (
+                <div className={`absolute right-0 z-50 mt-2 w-44 rounded-2xl border py-1.5 shadow-xl ${isDark ? 'border-stone-800 bg-stone-900 text-stone-200' : 'border-stone-200 bg-white text-stone-800'}`}>
+                  {themeOptions.map((opt) => (
+                    <button key={opt.id} onClick={() => handleThemeChange(opt.id)} className={`flex w-full items-center justify-between px-4 py-2 text-left text-xs font-medium transition ${theme === opt.id ? (isDark ? 'bg-stone-800 text-[#6B8E23]' : 'bg-[#EAF4DC] text-[#6B8E23]') : (isDark ? 'hover:bg-stone-800/60' : 'hover:bg-stone-50')}`}>
+                      <span>{opt.label}</span>
+                      {theme === opt.id && <span className="h-1.5 w-1.5 rounded-full bg-[#6B8E23]" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <button onClick={() => setIsModalOpen(true)} className="flex shrink-0 items-center gap-2 rounded-xl bg-[#6B8E23] px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#55731B]">
+              <Plus className="h-4 w-4" />
+              Cargar pedido manual
+            </button>
+          </div>
+        </header>
+
+        <div className={`mb-6 flex flex-col items-center justify-between gap-4 rounded-3xl border p-5 shadow-sm md:flex-row ${isDark ? 'border-stone-800 bg-stone-900' : 'bg-white border-stone-200/80'}`}>
+          <div className="flex items-center gap-3">
+            <div className={`rounded-2xl p-3 ${isDark ? 'bg-stone-800 text-[#C5E1A5]' : 'bg-[#EAF4DC] text-[#4A6B15]'}`}>
+              <DollarSign className="h-6 w-6" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold">Total General</h2>
+              <p className={`text-xs ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>Pedidos del d�a</p>
+            </div>
+          </div>
+          <p className="text-3xl font-black">${granTotalGeneral.toLocaleString('es-AR')}</p>
+        </div>
+
+        <section className="mb-6 grid gap-4 md:grid-cols-3">
+          {(['pedidosya', 'rappi', 'uber'] as PlatformKey[]).map((platform) => (
+            <div key={platform} className={`rounded-[24px] border p-5 ${isDark ? 'border-stone-800 bg-stone-900' : 'border-stone-200 bg-white'}`}>
+              <div className="mb-3 flex items-center justify-between">
+                <span className={`text-xs font-semibold ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>{platformLabels[platform]}</span>
+                <Bike className="h-4 w-4 text-[#6B8E23]" />
+              </div>
+              <p className="text-2xl font-black">${totalsByPlatform[platform].toLocaleString('es-AR')}</p>
+            </div>
+          ))}
+        </section>
+
+        <div className={`rounded-[28px] border p-5 ${isDark ? 'border-stone-800 bg-stone-900' : 'border-stone-200/80 bg-white'}`}>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-bold">�ltimos pedidos</h2>
+            <span className={`text-xs ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>Pedidos activos</span>
+          </div>
+
+          <div className="space-y-3">
+            {sales.map((sale) => (
+              <div key={sale.id} className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 ${isDark ? 'border-stone-800 bg-stone-950' : 'border-stone-200 bg-[#FAFAF6]'}`}>
+                <div className="flex items-center gap-3">
+                  <div className={`rounded-xl p-2.5 ${isDark ? 'bg-stone-800 text-[#C5E1A5]' : 'bg-[#EAF4DC] text-[#6B8E23]'}`}>
+                    <Bike className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="font-bold">{sale.item}</p>
+                    <p className={`text-xs ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>{sale.paymentAllocations?.map((allocation) => `${allocation.method} $${allocation.amount.toLocaleString('es-AR')}`).join(' + ') ?? sale.paymentMethod} � Pedido #{sale.id.slice(-4)}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <p className="text-base font-black">${sale.total.toLocaleString('es-AR')}</p>
+                  <button onClick={() => removeSale(sale.id)} className={`rounded-xl p-2 transition ${isDark ? 'bg-stone-800 text-stone-200 hover:bg-stone-700' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}`} aria-label={`Eliminar pedido ${sale.item}`}>
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {isModalOpen && (
+        <SalesCheckout
+          section="delivery"
+          products={productCatalog}
+          isDark={isDark}
+          onClose={() => {
+            setClientName('')
+            setIsModalOpen(false)
+          }}
+          title="Nuevo pedido"
+          itemPrefix={`${platformLabels[selectedPlatform]} � ${clientName.trim()} � `}
+          canSubmit={Boolean(clientName.trim())}
+          validationMessage="Ingres� el nombre del cliente para identificar el pedido."
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="text-sm font-medium">
+              Plataforma
+              <select value={selectedPlatform} onChange={(event) => setSelectedPlatform(event.target.value as PlatformKey)} className="mt-1 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm text-stone-800">
+                <option value="pedidosya">PedidosYa</option>
+                <option value="rappi">Rappi</option>
+                <option value="uber">Uber Eats</option>
+              </select>
+            </label>
+            <label className="text-sm font-medium">
+              Cliente
+              <input type="text" value={clientName} onChange={(event) => setClientName(event.target.value)} className="mt-1 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm text-stone-800" placeholder="Ej: Sof�a M." />
+            </label>
+          </div>
+        </SalesCheckout>
+      )}
+    </main>
+  )
+}
+
+
+
+// --- FILE: C:\Users\mhmc\emilia-cafe.bar\src\app\heladeria\page.tsx ---
+'use client'
+
+import { useEffect, useRef, useState } from 'react'
+import { ArrowLeft, Plus, IceCream, Trash2, Palette, ChevronDown, DollarSign, Package, Sparkles } from 'lucide-react'
+import Link from 'next/link'
+import { countSaleTickets, useSalesStore } from '@/store/salesStore'
+import { useShallow } from 'zustand/react/shallow'
+import SalesCheckout, { type SaleProductOption } from '@/app/components/SalesCheckout'
+
+type ThemeMode = 'minimal-light' | 'minimal-dark' | 'normal-light' | 'normal-dark'
+
+const themeOptions = [
+  { id: 'minimal-light', label: 'Minimal (Light)' },
+  { id: 'minimal-dark', label: 'Minimal (Dark)' },
+  { id: 'normal-light', label: 'Normal (Light)' },
+  { id: 'normal-dark', label: 'Normal (Dark)' },
+] as const
+
+export default function HeladeriaPage() {
+  const [theme, setTheme] = useState<ThemeMode>('normal-light')
+  const [isThemeOpen, setIsThemeOpen] = useState(false)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  const productCatalog = useSalesStore(useShallow((state) =>
+    state.products.filter((product) => product.active && product.sections.includes('heladeria')),
+  ))
+  const sales = useSalesStore(useShallow((state) => state.getSectionSales('heladeria')))
+  const iceCreamPrices = useSalesStore(useShallow((state) => state.iceCreamPrices))
+  const updateIceCreamPrice = useSalesStore((state) => state.updateIceCreamPrice)
+  const removeSale = useSalesStore((state) => state.removeSale)
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('emilia_theme') as ThemeMode | null
+    if (savedTheme) setTheme(savedTheme)
+  }, [])
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsThemeOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const isDark = theme.includes('dark')
+
+  const handleThemeChange = (newTheme: ThemeMode) => {
+    setTheme(newTheme)
+    localStorage.setItem('emilia_theme', newTheme)
+    setIsThemeOpen(false)
+  }
+
+  const totalVentas = sales.reduce((acc, sale) => acc + sale.total, 0)
+  const tickets = countSaleTickets(sales)
+  const promedio = tickets > 0 ? totalVentas / tickets : 0
+  const ventasPorProducto = sales.reduce<Record<string, number>>((acc, sale) => {
+    acc[sale.item] = (acc[sale.item] ?? 0) + sale.quantity
+    return acc
+  }, {})
+  const topProduct = Object.entries(ventasPorProducto).sort((a, b) => b[1] - a[1])[0]
+  const saleOptions: SaleProductOption[] = productCatalog.flatMap((product) => {
+    if (product.category === 'Gustos de helado') {
+      return iceCreamPrices.map((serving) => ({
+        id: `${product.id}:${serving.id}`,
+        productId: product.id,
+        item: `${product.name} � ${serving.label}`,
+        label: `${product.name} � ${serving.label} � $${(serving.offerPrice ?? serving.price).toLocaleString('es-AR')} � stock ${product.stock} ${product.unit}`,
+        unitPrice: serving.offerPrice ?? serving.price,
+        stockPerUnit: serving.grams,
+      }))
+    }
+    return [{
+      id: product.id,
+      productId: product.id,
+      item: product.name,
+      label: `${product.name} � $${(product.offerPrice ?? product.price).toLocaleString('es-AR')} � stock ${product.stock} ${product.unit}`,
+      unitPrice: product.offerPrice ?? product.price,
+      stockPerUnit: 1,
+    }]
+  })
+
+  return (
+    <main className={`min-h-screen p-4 md:p-8 transition-colors duration-300 ${isDark ? 'bg-stone-950 text-stone-100' : 'bg-[#FAFAFA] text-stone-800'}`}>
+      <div className="mx-auto max-w-7xl">
+        <header className={`mb-6 flex flex-col gap-4 rounded-[28px] border px-5 py-4 shadow-sm md:flex-row md:items-center md:justify-between ${isDark ? 'border-stone-800 bg-stone-900' : 'border-stone-200/80 bg-white'}`}>
+          <div className="flex items-center gap-3">
+            <Link href="/" className={`rounded-xl p-2.5 transition ${isDark ? 'bg-stone-800 text-[#4F46E5] hover:bg-stone-700' : 'bg-[#E0E7FF] text-[#4F46E5] hover:bg-[#C7D2FE]'}`} aria-label="Volver al inicio">
+              <ArrowLeft className="h-5 w-5" />
+            </Link>
+
+            <div>
+              <h1 className="flex items-center gap-2 text-lg font-bold tracking-tight">
+                Helader�a Emilia
+                <span className={`text-xs font-medium ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
+                  | mostrador
+                </span>
+              </h1>
+              <p className={`text-xs ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
+                Control de ventas, caja y stock de helados
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-3">
+            <div className="relative" ref={dropdownRef}>
+              <button onClick={() => setIsThemeOpen((prev) => !prev)} className={`flex items-center gap-2 rounded-xl border px-3.5 py-2.5 text-xs font-bold transition ${isDark ? 'border-stone-700 bg-stone-800 text-[#C7D2FE] hover:bg-stone-700' : 'border-stone-200 bg-stone-100 text-stone-700 hover:bg-stone-200'}`}>
+                <Palette className="h-3.5 w-3.5 text-[#4F46E5]" />
+                <span>Theme: {themeOptions.find((opt) => opt.id === theme)?.label}</span>
+                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isThemeOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {isThemeOpen && (
+                <div className={`absolute right-0 z-50 mt-2 w-44 rounded-2xl border py-1.5 shadow-xl ${isDark ? 'border-stone-800 bg-stone-900 text-stone-200' : 'border-stone-200 bg-white text-stone-800'}`}>
+                  {themeOptions.map((opt) => (
+                    <button key={opt.id} onClick={() => handleThemeChange(opt.id)} className={`flex w-full items-center justify-between px-4 py-2 text-left text-xs font-medium transition ${theme === opt.id ? (isDark ? 'bg-stone-800 text-[#C7D2FE]' : 'bg-[#E0E7FF] text-[#4F46E5]') : (isDark ? 'hover:bg-stone-800/60' : 'hover:bg-stone-50')}`}>
+                      <span>{opt.label}</span>
+                      {theme === opt.id && <span className="h-1.5 w-1.5 rounded-full bg-[#4F46E5]" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <button onClick={() => setIsModalOpen(true)} className="flex shrink-0 items-center gap-2 rounded-xl bg-[#4F46E5] px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#4338CA]">
+              <Plus className="h-4 w-4" />
+              Registrar venta
+            </button>
+          </div>
+        </header>
+
+        <section className={`mb-6 grid gap-4 rounded-[28px] border p-5 md:grid-cols-4 ${isDark ? 'border-stone-800 bg-stone-900' : 'border-stone-200/80 bg-white'}`}>
+          <div className={`rounded-2xl border p-4 ${isDark ? 'border-stone-800 bg-stone-950' : 'border-stone-200 bg-[#F5F3FF]'}`}>
+            <div className="mb-3 flex items-center justify-between">
+              <span className={`text-xs font-semibold ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>Ventas del d�a</span>
+              <div className={`rounded-xl p-2 ${isDark ? 'bg-stone-800 text-[#C7D2FE]' : 'bg-[#E0E7FF] text-[#4F46E5]'}`}>
+                <DollarSign className="h-4 w-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-black">${totalVentas.toLocaleString('es-AR')}</p>
+          </div>
+
+          <div className={`rounded-2xl border p-4 ${isDark ? 'border-stone-800 bg-stone-950' : 'border-stone-200 bg-[#F5F3FF]'}`}>
+            <div className="mb-3 flex items-center justify-between">
+              <span className={`text-xs font-semibold ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>Tickets</span>
+              <div className={`rounded-xl p-2 ${isDark ? 'bg-stone-800 text-[#C7D2FE]' : 'bg-[#E0E7FF] text-[#4F46E5]'}`}>
+                <Package className="h-4 w-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-black">{tickets}</p>
+          </div>
+
+          <div className={`rounded-2xl border p-4 ${isDark ? 'border-stone-800 bg-stone-950' : 'border-stone-200 bg-[#F5F3FF]'}`}>
+            <div className="mb-3 flex items-center justify-between">
+              <span className={`text-xs font-semibold ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>Promedio</span>
+              <div className={`rounded-xl p-2 ${isDark ? 'bg-stone-800 text-[#C7D2FE]' : 'bg-[#E0E7FF] text-[#4F46E5]'}`}>
+                <Sparkles className="h-4 w-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-black">${Math.round(promedio).toLocaleString('es-AR')}</p>
+          </div>
+
+          <div className={`rounded-2xl border p-4 ${isDark ? 'border-stone-800 bg-stone-950' : 'border-stone-200 bg-[#F5F3FF]'}`}>
+            <div className="mb-3 flex items-center justify-between">
+              <span className={`text-xs font-semibold ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>M�s vendido</span>
+              <div className={`rounded-xl p-2 ${isDark ? 'bg-stone-800 text-[#C7D2FE]' : 'bg-[#E0E7FF] text-[#4F46E5]'}`}>
+                <IceCream className="h-4 w-4" />
+              </div>
+            </div>
+            <p className="text-lg font-black">{topProduct ? `${topProduct[0]} (${topProduct[1]})` : 'Sin ventas'}</p>
+          </div>
+        </section>
+
+        <section className="grid gap-6 lg:grid-cols-[1.5fr_0.9fr]">
+          <div className={`rounded-[28px] border p-5 ${isDark ? 'border-stone-800 bg-stone-900' : 'border-stone-200/80 bg-white'}`}>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold">�ltimos movimientos</h2>
+              <span className={`text-xs ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>Mostrador / local</span>
+            </div>
+
+            <div className="space-y-3">
+              {sales.map((sale) => (
+                <div key={sale.id} className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 ${isDark ? 'border-stone-800 bg-stone-950' : 'border-stone-200 bg-[#FDFDFF]'}`}>
+                  <div className="flex items-center gap-3">
+                    <div className={`rounded-xl p-2.5 ${isDark ? 'bg-stone-800 text-[#C7D2FE]' : 'bg-[#E0E7FF] text-[#4F46E5]'}`}>
+                      <IceCream className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="font-bold">{sale.item}</p>
+                      <p className={`text-xs ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
+                        {sale.quantity} unidades � {new Date(sale.createdAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Argentina/Buenos_Aires' })}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <p className="text-base font-black">${sale.total.toLocaleString('es-AR')}</p>
+                    <button onClick={() => removeSale(sale.id)} className={`rounded-xl p-2 transition ${isDark ? 'bg-stone-800 text-stone-200 hover:bg-stone-700' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}`} aria-label={`Eliminar venta de ${sale.item}`}>
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <aside className={`rounded-[28px] border p-5 ${isDark ? 'border-stone-800 bg-stone-900' : 'border-stone-200/80 bg-white'}`}>
+            <h2 className="mb-4 text-lg font-bold">Stock compartido de helader�a</h2>
+            <div className="space-y-3">
+              {productCatalog.map((product) => {
+                const sold = sales.filter((sale) => sale.productId === product.id).reduce((acc, sale) => acc + sale.quantity, 0)
+
+                return (
+                  <div key={product.id} className={`rounded-2xl border p-3 ${isDark ? 'border-stone-800 bg-stone-950' : 'border-stone-200 bg-[#F8F7FF]'}`}>
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="font-semibold">{product.name}</span>
+                      <span className={`text-xs ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
+                        {product.category === 'Gustos de helado' ? product.category : `$${(product.offerPrice ?? product.price).toLocaleString('es-AR')}`}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className={isDark ? 'text-stone-400' : 'text-stone-500'}>Vendidos</span>
+                      <span className="font-bold">{sold}</span>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between text-xs">
+                      <span className={isDark ? 'text-stone-400' : 'text-stone-500'}>Stock</span>
+                      <span className={`font-bold ${product.stock > 400 ? 'text-emerald-500' : 'text-amber-500'}`}>{product.stock} {product.unit}</span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            <div className="mt-5 border-t border-stone-200 pt-4">
+              <h3 className="mb-3 font-bold">Precios por tama�o y ofertas</h3>
+              <div className="space-y-3">
+                {iceCreamPrices.map((option) => (
+                  <div key={option.id} className="rounded-xl border border-stone-200 p-3">
+                    <div className="grid grid-cols-[1fr_5rem_6rem] gap-2">
+                      <input aria-label="Nombre del tama�o" value={option.label} onChange={(event) => updateIceCreamPrice(option.id, { label: event.target.value })} className="min-w-0 rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-xs" />
+                      <input aria-label="Gramos" type="number" min="1" value={option.grams} onChange={(event) => updateIceCreamPrice(option.id, { grams: Number(event.target.value) })} className="w-full rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-xs" />
+                      <input aria-label="Precio" type="number" min="0" value={option.price} onChange={(event) => updateIceCreamPrice(option.id, { price: Number(event.target.value) })} className="w-full rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-xs" />
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <input aria-label="Nombre de la oferta" value={option.offerName ?? ''} onChange={(event) => updateIceCreamPrice(option.id, { offerName: event.target.value || undefined })} className="min-w-0 rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-xs" placeholder="Oferta (opcional)" />
+                      <input aria-label="Precio de oferta" type="number" min="0" value={option.offerPrice ?? ''} onChange={(event) => updateIceCreamPrice(option.id, { offerPrice: event.target.value === '' ? undefined : Number(event.target.value) })} className="w-full rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-xs" placeholder="Precio oferta" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className={`mt-2 text-[11px] ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>Tama�o � gramos � precio. El stock de cada gusto se descuenta seg�n los gramos.</p>
+            </div>
+          </aside>
+        </section>
+      </div>
+
+      {isModalOpen && <SalesCheckout section="heladeria" products={productCatalog} options={saleOptions} isDark={isDark} onClose={() => setIsModalOpen(false)} />}
+    </main>
+  )
+}
+
+
+
+// --- FILE: C:\Users\mhmc\emilia-cafe.bar\src\app\inventario\page.tsx ---
+'use client'
+
+import { useState, type FormEvent } from 'react'
+import Link from 'next/link'
+import { ArrowLeft, Check, Edit3, PackagePlus, Plus, Save, Trash2, X } from 'lucide-react'
+import { useSalesStore, type CatalogProduct, type SalesSection } from '@/store/salesStore'
+
+const sellSections: { id: SalesSection; label: string }[] = [
+  { id: 'cafeteria', label: 'Cafetería' },
+  { id: 'heladeria', label: 'Heladería' },
+  { id: 'bar', label: 'Bar' },
+  { id: 'almacen', label: 'Almacén / kiosco' },
+  { id: 'mesas', label: 'Mesas' },
+  { id: 'delivery', label: 'Delivery' },
+]
+
+type ProductForm = Omit<CatalogProduct, 'id'>
+
+const emptyForm: ProductForm = {
+  name: '',
+  category: '',
+  price: 0,
+  stock: 0,
+  unit: 'unidad',
+  sections: [],
+  active: true,
+  offerName: '',
+  offerPrice: undefined,
+}
+
+export default function InventarioPage() {
+  const products = useSalesStore((state) => state.products)
+  const addProduct = useSalesStore((state) => state.addProduct)
+  const updateProduct = useSalesStore((state) => state.updateProduct)
+  const deleteProduct = useSalesStore((state) => state.deleteProduct)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [form, setForm] = useState<ProductForm>(emptyForm)
+  const [error, setError] = useState('')
+
+  const stockTotal = products.reduce((sum, product) => sum + product.stock, 0)
+  const lowStockCount = products.filter((product) => product.active && product.stock <= 5).length
+
+  const resetForm = () => {
+    setForm(emptyForm)
+    setEditingId(null)
+    setError('')
+  }
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const name = form.name.trim()
+    const category = form.category.trim()
+    if (!name || !category || !form.unit.trim() || form.sections.length === 0) {
+      setError('Completá el nombre, la categoría, la unidad y al menos una sección de venta.')
+      return
+    }
+    if (!Number.isFinite(form.price) || form.price < 0 || !Number.isFinite(form.stock) || form.stock < 0) {
+      setError('El precio y el stock deben ser números iguales o mayores a cero.')
+      return
+    }
+    if (form.offerName?.trim() && (!Number.isFinite(form.offerPrice) || (form.offerPrice ?? -1) < 0)) {
+      setError('Ingresá un precio válido para la oferta.')
+      return
+    }
+
+    const product = {
+      ...form,
+      name,
+      category,
+      unit: form.unit.trim(),
+      offerName: form.offerName?.trim() || undefined,
+      offerPrice: form.offerName?.trim() ? form.offerPrice : undefined,
+    }
+    if (editingId) {
+      updateProduct(editingId, product)
+    } else {
+      addProduct(product)
+    }
+    resetForm()
+  }
+
+  const startEditing = (product: CatalogProduct) => {
+    setEditingId(product.id)
+    setForm({
+      name: product.name,
+      category: product.category,
+      price: product.price,
+      stock: product.stock,
+      unit: product.unit,
+      sections: product.sections,
+      active: product.active,
+      offerName: product.offerName ?? '',
+      offerPrice: product.offerPrice,
+    })
+    setError('')
+  }
+
+  const toggleSection = (section: SalesSection) => {
+    setForm((current) => ({
+      ...current,
+      sections: current.sections.includes(section)
+        ? current.sections.filter((item) => item !== section)
+        : [...current.sections, section],
+    }))
+  }
+
+  const handleDeleteProduct = (product: CatalogProduct) => {
+    const confirmed = window.confirm(
+      `¿Eliminar "${product.name}" del catálogo? Los movimientos de caja ya registrados se conservarán.`,
+    )
+    if (confirmed) {
+      deleteProduct(product.id)
+      if (editingId === product.id) resetForm()
+    }
+  }
+
+  const shownProducts = products
+
+  return (
+    <main className="min-h-screen bg-[#FAFAFA] p-4 text-stone-800 md:p-8">
+      <div className="mx-auto max-w-7xl">
+        <header className="mb-6 flex items-center gap-3 rounded-[28px] border border-stone-200 bg-white p-5 shadow-sm">
+          <Link href="/" className="rounded-xl bg-[#EDE9FE] p-2.5 text-[#6D28D9] transition hover:bg-[#ddd6fe]" aria-label="Volver al inicio">
+            <ArrowLeft className="h-5 w-5" />
+          </Link>
+          <div>
+            <h1 className="text-lg font-bold tracking-tight">Inventario y catálogo</h1>
+            <p className="text-xs text-stone-500">Administrá productos, precios, ofertas y disponibilidad de cada sector</p>
+          </div>
+        </header>
+
+        <section className="mb-6 grid gap-4 sm:grid-cols-3">
+          <div className="rounded-2xl border border-stone-200 bg-white p-5">
+            <p className="text-xs font-semibold text-stone-500">Productos activos</p>
+            <p className="mt-2 text-2xl font-black">{products.filter((product) => product.active).length}</p>
+          </div>
+          <div className="rounded-2xl border border-stone-200 bg-white p-5">
+            <p className="text-xs font-semibold text-stone-500">Unidades / cantidad total</p>
+            <p className="mt-2 text-2xl font-black">{stockTotal.toLocaleString('es-AR')}</p>
+          </div>
+          <div className="rounded-2xl border border-stone-200 bg-white p-5">
+            <p className="text-xs font-semibold text-stone-500">Productos con stock bajo (5 o menos)</p>
+            <p className="mt-2 text-2xl font-black">{lowStockCount}</p>
+          </div>
+        </section>
+
+        <div className="grid gap-6 lg:grid-cols-[minmax(300px,0.8fr)_1.2fr]">
+          <form onSubmit={handleSubmit} className="h-fit rounded-[28px] border border-stone-200 bg-white p-5 shadow-sm">
+            <div className="mb-5 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold">{editingId ? 'Editar producto' : 'Agregar producto'}</h2>
+                <p className="mt-1 text-xs text-stone-500">Los cambios se reflejan en los módulos que lo venden.</p>
+              </div>
+              {editingId ? <button type="button" onClick={resetForm} className="rounded-lg p-2 text-stone-500 hover:bg-stone-100" aria-label="Cancelar edición"><X className="h-4 w-4" /></button> : <PackagePlus className="h-5 w-5 text-[#6D28D9]" />}
+            </div>
+
+            <div className="space-y-3">
+              <label className="block text-sm font-medium">Producto / gusto
+                <input required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} className="mt-1 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm" placeholder="Ej. Sandwich de jamón y queso" />
+              </label>
+              <label className="block text-sm font-medium">Categoría
+                <input required value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} className="mt-1 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm" placeholder="Ej. Menú del día, Bebidas, Gustos de helado" />
+                <span className="mt-1 block text-xs font-normal text-stone-500">En Bar usá “Menú del día” o “Bebidas” para ordenar la carta. Para vender helado por bocha o kilo, usá “Gustos de helado” y unidad “g”.</span>
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block text-sm font-medium">Precio de venta
+                  <input type="number" min="0" step="0.01" value={form.price} onChange={(event) => setForm({ ...form, price: Number(event.target.value) })} className="mt-1 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm" />
+                </label>
+                <label className="block text-sm font-medium">Stock inicial
+                  <input type="number" min="0" step="0.01" value={form.stock} onChange={(event) => setForm({ ...form, stock: Number(event.target.value) })} className="mt-1 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm" />
+                </label>
+              </div>
+              <label className="block text-sm font-medium">Unidad de stock
+                <input required value={form.unit} onChange={(event) => setForm({ ...form, unit: event.target.value })} className="mt-1 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm" placeholder="unidad, kg, g, litro…" />
+              </label>
+
+              <fieldset>
+                <legend className="mb-2 text-sm font-medium">Disponible para vender en</legend>
+                <div className="grid grid-cols-2 gap-2">
+                  {sellSections.map((section) => (
+                    <label key={section.id} className="flex items-center gap-2 rounded-xl border border-stone-200 px-3 py-2 text-xs">
+                      <input type="checkbox" checked={form.sections.includes(section.id)} onChange={() => toggleSection(section.id)} />
+                      {section.label}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+              <label className="flex items-center gap-2 text-sm font-medium">
+                <input type="checkbox" checked={form.active} onChange={(event) => setForm({ ...form, active: event.target.checked })} />
+                Producto activo y disponible para venta
+              </label>
+
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3">
+                <p className="mb-2 text-sm font-semibold">Oferta opcional</p>
+                <input value={form.offerName ?? ''} onChange={(event) => setForm({ ...form, offerName: event.target.value })} className="mb-2 w-full rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm" placeholder="Ej. Promo desayuno" />
+                <input type="number" min="0" step="0.01" value={form.offerPrice ?? ''} onChange={(event) => setForm({ ...form, offerPrice: event.target.value === '' ? undefined : Number(event.target.value) })} className="w-full rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm" placeholder="Precio promocional" />
+              </div>
+            </div>
+
+            {error && <p role="alert" className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+            <button type="submit" className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#6D28D9] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#5B21B6]">
+              {editingId ? <Save className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+              {editingId ? 'Guardar cambios' : 'Agregar al catálogo'}
+            </button>
+          </form>
+
+          <section className="rounded-[28px] border border-stone-200 bg-white p-5 shadow-sm">
+            <div className="mb-4">
+              <h2 className="text-lg font-bold">Productos compartidos</h2>
+              <p className="mt-1 text-xs text-stone-500">Almacén y los sectores seleccionados consultan estas mismas existencias.</p>
+            </div>
+            <div className="space-y-3">
+              {shownProducts.map((product) => (
+                <article key={product.id} className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold">{product.name}</h3>
+                        {!product.active && <span className="rounded-full bg-stone-200 px-2 py-0.5 text-[11px] font-semibold text-stone-600">Inactivo</span>}
+                        {product.offerName && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800">{product.offerName}</span>}
+                      </div>
+                      <p className="text-xs text-stone-500">{product.category} · ${product.price.toLocaleString('es-AR')} · {product.sections.map((id) => sellSections.find((section) => section.id === id)?.label).filter(Boolean).join(', ')}</p>
+                      {product.offerPrice !== undefined && <p className="mt-1 text-xs font-semibold text-amber-800">Oferta: ${product.offerPrice.toLocaleString('es-AR')}</p>}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button onClick={() => startEditing(product)} className="flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-semibold hover:bg-stone-100">
+                        <Edit3 className="h-3.5 w-3.5" /> Editar
+                      </button>
+                      <button onClick={() => updateProduct(product.id, { active: !product.active })} className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-semibold hover:bg-stone-100">
+                        {product.active ? 'Desactivar' : 'Activar'}
+                      </button>
+                      <button onClick={() => handleDeleteProduct(product)} className="flex items-center gap-1.5 rounded-xl border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50">
+                        <Trash2 className="h-3.5 w-3.5" /> Eliminar
+                      </button>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between border-t border-stone-200 pt-3">
+                    <p className={`text-sm font-semibold ${product.stock <= 5 ? 'text-amber-700' : 'text-stone-600'}`}>
+                      Stock: {product.stock.toLocaleString('es-AR')} {product.unit}
+                    </p>
+                    <div className="flex gap-2">
+                      <button onClick={() => updateProduct(product.id, { stock: Math.max(0, product.stock - 1) })} className="rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-sm font-bold" aria-label={`Quitar una unidad de ${product.name}`}>−</button>
+                      <button onClick={() => updateProduct(product.id, { stock: product.stock + 1 })} className="flex items-center gap-1 rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-sm font-bold" aria-label={`Agregar una unidad de ${product.name}`}><Check className="h-3.5 w-3.5" />+1</button>
+                    </div>
+                  </div>
+                </article>
+              ))}
+              {shownProducts.length === 0 && <p className="rounded-xl bg-stone-50 p-5 text-center text-sm text-stone-500">Todavía no hay productos activos en el catálogo.</p>}
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+  )
+}
+
+
+
+// --- FILE: C:\Users\mhmc\emilia-cafe.bar\src\app\mesas\page.tsx ---
+'use client'
+
+import { useState } from 'react'
+import Link from 'next/link'
+import { ArrowLeft, Check, CircleDollarSign, Minus, Plus, Trash2, Users, X } from 'lucide-react'
+import { useSalesStore, tableNames } from '@/store/salesStore'
+import { useShallow } from 'zustand/react/shallow'
+import { initialPaymentSplitPlan, PaymentSplitEditor, resolvePaymentSplit, type PaymentSplitPlan } from '@/app/components/SalesCheckout'
+
+export default function MesasPage() {
+  const products = useSalesStore(useShallow((state) =>
+    state.products.filter((product) => product.active && product.sections.includes('mesas')),
+  ))
+  const tableOrders = useSalesStore((state) => state.tableOrders)
+  const sales = useSalesStore(useShallow((state) => state.getSectionSales('mesas')))
+  const addTableOrderItem = useSalesStore((state) => state.addTableOrderItem)
+  const updateTableOrderItemQuantity = useSalesStore((state) => state.updateTableOrderItemQuantity)
+  const removeTableOrderItem = useSalesStore((state) => state.removeTableOrderItem)
+  const cancelTableOrder = useSalesStore((state) => state.cancelTableOrder)
+  const closeTableOrder = useSalesStore((state) => state.closeTableOrder)
+
+  const [selectedTable, setSelectedTable] = useState<string | null>(null)
+  const [selectedProductId, setSelectedProductId] = useState('')
+  const [quantity, setQuantity] = useState('1')
+  const [paymentPlan, setPaymentPlan] = useState<PaymentSplitPlan>(initialPaymentSplitPlan)
+  const [error, setError] = useState('')
+  const activeTables = tableNames.filter((tableName) => (tableOrders[tableName]?.lines.length ?? 0) > 0).length
+  const totalOpen = tableNames.reduce((sum, tableName) =>
+    sum + (tableOrders[tableName]?.lines.reduce((lineSum, line) => lineSum + line.total, 0) ?? 0), 0)
+  const closedSalesTotal = sales.reduce((sum, sale) => sum + sale.total, 0)
+  const currentOrder = selectedTable ? tableOrders[selectedTable] : null
+  const currentTotal = currentOrder?.lines.reduce((sum, line) => sum + line.total, 0) ?? 0
+  const selectedProduct = products.find((product) => product.id === selectedProductId) ?? products[0]
+
+  const handleAddItem = () => {
+    if (!selectedTable || !selectedProduct) return
+    const result = addTableOrderItem(selectedTable, selectedProduct.id, Number(quantity))
+    if (!result.success) {
+      setError(result.error)
+      return
+    }
+    setError('')
+    setQuantity('1')
+  }
+
+  const handleCloseOrder = () => {
+    if (!selectedTable) return
+    const paymentAllocations = resolvePaymentSplit(currentTotal, paymentPlan)
+    if (!paymentAllocations?.length) {
+      setError('Revisá los importes distribuidos entre los medios de pago.')
+      return
+    }
+    const result = closeTableOrder(selectedTable, paymentAllocations)
+    if (!result.success) {
+      setError(result.error)
+      return
+    }
+    setError('')
+    setPaymentPlan(initialPaymentSplitPlan())
+    setSelectedTable(null)
+  }
+
+  const handleCancelOrder = () => {
+    if (!selectedTable || !window.confirm(`¿Cancelar la comanda de ${selectedTable}? El stock reservado se devolverá al inventario.`)) return
+    cancelTableOrder(selectedTable)
+    setError('')
+    setSelectedTable(null)
+  }
+
+  return (
+    <main className="min-h-screen bg-[#FAFAFA] p-4 text-stone-800 md:p-8">
+      <div className="mx-auto max-w-7xl">
+        <header className="mb-6 flex flex-wrap items-center gap-3 rounded-[28px] border border-stone-200 bg-white p-5 shadow-sm">
+          <Link href="/" className="rounded-xl bg-[#F0F9FF] p-2.5 text-[#0F766E] transition hover:bg-[#dff7ff]" aria-label="Volver al inicio">
+            <ArrowLeft className="h-5 w-5" />
+          </Link>
+          <div className="flex-1">
+            <h1 className="text-lg font-bold tracking-tight">Comandas de mesas</h1>
+            <p className="text-xs text-stone-500">Agregá pedidos a una mesa abierta; la venta pasa a Caja al cobrar y cerrar.</p>
+          </div>
+        </header>
+
+        <section className="mb-6 grid gap-4 sm:grid-cols-3">
+          <div className="rounded-2xl border border-stone-200 bg-white p-5">
+            <p className="flex items-center gap-2 text-xs font-semibold text-stone-500"><Users className="h-4 w-4" /> Mesas con comanda abierta</p>
+            <p className="mt-2 text-2xl font-black">{activeTables}</p>
+          </div>
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+            <p className="text-xs font-semibold text-amber-800">Total pendiente de cobro</p>
+            <p className="mt-2 text-2xl font-black text-amber-900">${totalOpen.toLocaleString('es-AR')}</p>
+          </div>
+          <div className="rounded-2xl border border-stone-200 bg-white p-5">
+            <p className="flex items-center gap-2 text-xs font-semibold text-stone-500"><CircleDollarSign className="h-4 w-4" /> Cobrado en mesas hoy</p>
+            <p className="mt-2 text-2xl font-black">${closedSalesTotal.toLocaleString('es-AR')}</p>
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-[28px] border border-stone-200 bg-white p-5 shadow-sm">
+          <div className="mb-4">
+            <h2 className="text-lg font-bold">Salón</h2>
+            <p className="mt-1 text-xs text-stone-500">Seleccioná una mesa para abrir una comanda nueva o continuar una pendiente.</p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+            {tableNames.map((tableName) => {
+              const order = tableOrders[tableName]
+              const isOpen = (order?.lines.length ?? 0) > 0
+              const total = order?.lines.reduce((sum, line) => sum + line.total, 0) ?? 0
+              const isSelected = selectedTable === tableName
+
+              return (
+                <button
+                  key={tableName}
+                  type="button"
+                  onClick={() => {
+                    setSelectedTable(tableName)
+                    setSelectedProductId(products[0]?.id ?? '')
+                    setError('')
+                  }}
+                  className={`rounded-2xl border p-4 text-left transition ${
+                    isSelected
+                      ? 'border-[#0F766E] bg-[#F0F9FF] ring-2 ring-[#0F766E]/20'
+                      : isOpen
+                        ? 'border-amber-300 bg-amber-50 hover:bg-amber-100'
+                        : 'border-stone-200 bg-stone-50 hover:bg-stone-100'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-bold">{tableName}</span>
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${isOpen ? 'bg-amber-200 text-amber-900' : 'bg-stone-200 text-stone-600'}`}>
+                      {isOpen ? 'ABIERTA' : 'LIBRE'}
+                    </span>
+                  </div>
+                  <p className="mt-3 text-lg font-black">${total.toLocaleString('es-AR')}</p>
+                  <p className="text-xs text-stone-500">{order?.lines.length ?? 0} productos</p>
+                  <p className="mt-3 text-xs font-semibold text-[#0F766E]">{isOpen ? 'Ver / editar comanda' : 'Abrir comanda'}</p>
+                </button>
+              )
+            })}
+          </div>
+        </section>
+
+        {selectedTable && currentOrder && (
+          <section className="grid items-start gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+            <div className="rounded-[28px] border border-stone-200 bg-white p-5 shadow-sm">
+              <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[#0F766E]">Comanda abierta</p>
+                  <h2 className="text-xl font-black">{selectedTable}</h2>
+                  {currentOrder.openedAt && <p className="mt-1 text-xs text-stone-500">Abierta: {new Date(currentOrder.openedAt).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}</p>}
+                </div>
+                <button type="button" onClick={() => setSelectedTable(null)} className="rounded-xl border border-stone-200 p-2 text-stone-500 hover:bg-stone-100" aria-label="Cerrar detalle de comanda">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {currentOrder.lines.length > 0 ? (
+                <div className="space-y-3">
+                  {currentOrder.lines.map((line) => (
+                    <article key={line.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-stone-200 bg-stone-50 p-4">
+                      <div className="min-w-0">
+                        <p className="font-bold">{line.item}</p>
+                        <p className="text-xs text-stone-500">${line.unitPrice.toLocaleString('es-AR')} por unidad</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (line.quantity <= 1) removeTableOrderItem(selectedTable, line.id)
+                            else {
+                              const result = updateTableOrderItemQuantity(selectedTable, line.id, line.quantity - 1)
+                              if (!result.success) setError(result.error)
+                            }
+                          }}
+                          className="rounded-lg border border-stone-200 bg-white p-2 hover:bg-stone-100"
+                          aria-label={`Restar una unidad de ${line.item}`}
+                        >
+                          {line.quantity <= 1 ? <Trash2 className="h-4 w-4 text-red-600" /> : <Minus className="h-4 w-4" />}
+                        </button>
+                        <span className="min-w-8 text-center font-bold">{line.quantity}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const result = updateTableOrderItemQuantity(selectedTable, line.id, line.quantity + 1)
+                            if (!result.success) setError(result.error)
+                          }}
+                          className="rounded-lg border border-stone-200 bg-white p-2 hover:bg-stone-100"
+                          aria-label={`Agregar una unidad de ${line.item}`}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </button>
+                        <span className="min-w-24 text-right font-black">${line.total.toLocaleString('es-AR')}</span>
+                        <button type="button" onClick={() => removeTableOrderItem(selectedTable, line.id)} className="rounded-lg p-2 text-red-600 hover:bg-red-50" aria-label={`Quitar ${line.item} de la comanda`}>
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <p className="rounded-2xl bg-stone-50 p-6 text-center text-sm text-stone-500">Comanda vacía. Agregá el primer producto desde el catálogo.</p>
+              )}
+
+              <div className="mt-5 flex items-center justify-between border-t border-stone-200 pt-4">
+                <span className="text-sm font-semibold text-stone-500">Total de la comanda</span>
+                <span className="text-2xl font-black">${currentTotal.toLocaleString('es-AR')}</span>
+              </div>
+
+              {error && <p role="alert" className="mt-4 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+
+              {currentOrder.lines.length > 0 && (
+                <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto_auto]">
+                  <div className="sm:col-span-3"><PaymentSplitEditor total={currentTotal} plan={paymentPlan} onChange={setPaymentPlan} /></div>
+                  <button type="button" onClick={handleCancelOrder} className="rounded-xl border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-50">
+                    Cancelar comanda
+                  </button>
+                  <button type="button" onClick={handleCloseOrder} className="flex items-center justify-center gap-2 rounded-xl bg-[#0F766E] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#115E59]">
+                    <Check className="h-4 w-4" /> Cobrar y cerrar
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-[28px] border border-stone-200 bg-white p-5 shadow-sm">
+              <h2 className="text-lg font-bold">Agregar pedido</h2>
+              <p className="mb-4 mt-1 text-xs text-stone-500">El producto se reserva del stock mientras la comanda está abierta.</p>
+              {products.length > 0 ? (
+                <div className="space-y-4">
+                  <label className="block text-sm font-medium">Producto
+                    <select value={selectedProduct?.id ?? ''} onChange={(event) => setSelectedProductId(event.target.value)} className="mt-1 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm">
+                      {products.map((product) => (
+                        <option key={product.id} value={product.id} disabled={product.stock <= 0}>
+                          {product.name} · ${(product.offerPrice ?? product.price).toLocaleString('es-AR')} · stock {product.stock} {product.unit}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block text-sm font-medium">Cantidad
+                    <input type="number" min="0.01" step="0.01" value={quantity} onChange={(event) => setQuantity(event.target.value)} className="mt-1 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm" />
+                  </label>
+                  {selectedProduct && <p className="text-sm text-stone-600">Subtotal: <span className="font-bold">${((selectedProduct.offerPrice ?? selectedProduct.price) * (Number(quantity) || 0)).toLocaleString('es-AR')}</span></p>}
+                  <button type="button" onClick={handleAddItem} disabled={!selectedProduct || selectedProduct.stock <= 0} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#0F766E] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#115E59] disabled:cursor-not-allowed disabled:opacity-50">
+                    <Plus className="h-4 w-4" /> Agregar a {selectedTable}
+                  </button>
+                </div>
+              ) : (
+                <div className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-900">
+                  No hay productos disponibles para Mesas. Asigná productos a esta sección desde <Link href="/inventario" className="font-bold underline">Inventario</Link>.
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+      </div>
+    </main>
+  )
+}
+
+
+
+// --- FILE: C:\Users\mhmc\emilia-cafe.bar\src\app\proveedores\page.tsx ---
+'use client'
+
+import { useMemo, useState, type FormEvent } from 'react'
+import Link from 'next/link'
+import { ArrowLeft, BookOpen, Plus, ReceiptText, Trash2, Truck, Wallet } from 'lucide-react'
+import { useSupplierStore, type SupplierEntryType } from '@/store/supplierStore'
+import { useShallow } from 'zustand/react/shallow'
+
+const paymentMethods = ['Efectivo', 'Transferencia', 'Tarjeta', 'Mercado Pago', 'Otro']
+const today = new Date().toISOString().slice(0, 10)
+
+export default function ProveedoresPage() {
+  const suppliers = useSupplierStore((state) => state.suppliers)
+  const entries = useSupplierStore(useShallow((state) => state.entries))
+  const addSupplier = useSupplierStore((state) => state.addSupplier)
+  const updateSupplier = useSupplierStore((state) => state.updateSupplier)
+  const removeSupplier = useSupplierStore((state) => state.removeSupplier)
+  const addEntry = useSupplierStore((state) => state.addEntry)
+  const removeEntry = useSupplierStore((state) => state.removeEntry)
+
+  const [supplierName, setSupplierName] = useState('')
+  const [supplierContact, setSupplierContact] = useState('')
+  const [supplierNotes, setSupplierNotes] = useState('')
+  const [editingSupplierId, setEditingSupplierId] = useState<string | null>(null)
+  const [selectedSupplierId, setSelectedSupplierId] = useState('')
+  const [entryType, setEntryType] = useState<SupplierEntryType>('purchase')
+  const [detail, setDetail] = useState('')
+  const [amount, setAmount] = useState('')
+  const [date, setDate] = useState(today)
+  const [reference, setReference] = useState('')
+  const [paymentMethod, setPaymentMethod] = useState(paymentMethods[0])
+  const [error, setError] = useState('')
+  const [supplierFilter, setSupplierFilter] = useState('all')
+
+  const totalPurchases = entries.reduce((sum, entry) => sum + (entry.type === 'purchase' ? entry.amount : 0), 0)
+  const totalPayments = entries.reduce((sum, entry) => sum + (entry.type === 'payment' ? entry.amount : 0), 0)
+  const balance = totalPurchases - totalPayments
+  const filteredEntries = useMemo(
+    () => supplierFilter === 'all' ? entries : entries.filter((entry) => entry.supplierId === supplierFilter),
+    [entries, supplierFilter],
+  )
+
+  const resetSupplierForm = () => {
+    setSupplierName('')
+    setSupplierContact('')
+    setSupplierNotes('')
+    setEditingSupplierId(null)
+  }
+
+  const handleSupplierSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const name = supplierName.trim()
+    if (!name) return
+
+    if (editingSupplierId) {
+      updateSupplier(editingSupplierId, {
+        name,
+        contact: supplierContact.trim(),
+        notes: supplierNotes.trim(),
+      })
+    } else {
+      addSupplier({
+        name,
+        contact: supplierContact.trim(),
+        notes: supplierNotes.trim(),
+      })
+    }
+    resetSupplierForm()
+  }
+
+  const handleEntrySubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const cleanAmount = Number(amount)
+    if (!selectedSupplierId || !detail.trim() || !Number.isFinite(cleanAmount) || cleanAmount <= 0 || !date) {
+      setError('Elegí un proveedor, completá el detalle y cargá un importe mayor que cero.')
+      return
+    }
+
+    addEntry({
+      supplierId: selectedSupplierId,
+      type: entryType,
+      detail: detail.trim(),
+      amount: cleanAmount,
+      date,
+      reference: reference.trim(),
+      paymentMethod,
+    })
+    setError('')
+    setDetail('')
+    setAmount('')
+    setReference('')
+  }
+
+  const handleRemoveSupplier = (id: string, name: string) => {
+    const hasEntries = entries.some((entry) => entry.supplierId === id)
+    const message = hasEntries
+      ? `Eliminar a ${name} también eliminará todos sus registros del libro. ¿Continuar?`
+      : `¿Eliminar al proveedor ${name}?`
+    if (window.confirm(message)) {
+      removeSupplier(id)
+      if (selectedSupplierId === id) setSelectedSupplierId('')
+      if (editingSupplierId === id) resetSupplierForm()
+    }
+  }
+
+  const supplierNameById = new Map(suppliers.map((supplier) => [supplier.id, supplier.name]))
+
+  return (
+    <main className="min-h-screen bg-[#FAFAFA] p-4 text-stone-800 md:p-8">
+      <div className="mx-auto max-w-7xl">
+        <header className="mb-6 flex items-center gap-3 rounded-[28px] border border-stone-200 bg-white p-5 shadow-sm">
+          <Link href="/" className="rounded-xl bg-orange-100 p-2.5 text-orange-700 transition hover:bg-orange-200" aria-label="Volver al inicio">
+            <ArrowLeft className="h-5 w-5" />
+          </Link>
+          <div className="flex-1">
+            <h1 className="flex items-center gap-2 text-lg font-bold tracking-tight">
+              <Truck className="h-5 w-5 text-orange-700" />
+              Libro de proveedores
+            </h1>
+            <p className="text-xs text-stone-500">Anotá compras y pagos manuales; este registro es independiente de la caja diaria.</p>
+          </div>
+        </header>
+
+        <section className="mb-6 grid gap-4 sm:grid-cols-3">
+          <div className="rounded-2xl border border-stone-200 bg-white p-5">
+            <p className="flex items-center gap-2 text-xs font-semibold text-stone-500"><ReceiptText className="h-4 w-4" /> Compras registradas</p>
+            <p className="mt-2 text-2xl font-black">${totalPurchases.toLocaleString('es-AR')}</p>
+          </div>
+          <div className="rounded-2xl border border-stone-200 bg-white p-5">
+            <p className="flex items-center gap-2 text-xs font-semibold text-stone-500"><Wallet className="h-4 w-4" /> Pagos registrados</p>
+            <p className="mt-2 text-2xl font-black">${totalPayments.toLocaleString('es-AR')}</p>
+          </div>
+          <div className="rounded-2xl border border-orange-200 bg-orange-50 p-5">
+            <p className="flex items-center gap-2 text-xs font-semibold text-orange-800"><BookOpen className="h-4 w-4" /> Saldo del libro</p>
+            <p className="mt-2 text-2xl font-black text-orange-900">${balance.toLocaleString('es-AR')}</p>
+            <p className="mt-1 text-[11px] text-orange-800">Compras menos pagos anotados</p>
+          </div>
+        </section>
+
+        <div className="grid items-start gap-6 lg:grid-cols-[0.8fr_1.2fr]">
+          <div className="space-y-6">
+            <form onSubmit={handleSupplierSubmit} className="rounded-[28px] border border-stone-200 bg-white p-5 shadow-sm">
+              <h2 className="mb-4 text-lg font-bold">{editingSupplierId ? 'Editar proveedor' : 'Agregar proveedor'}</h2>
+              <div className="space-y-3">
+                <label className="block text-sm font-medium">Nombre
+                  <input required value={supplierName} onChange={(event) => setSupplierName(event.target.value)} className="mt-1 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm" placeholder="Nombre o razón social" />
+                </label>
+                <label className="block text-sm font-medium">Contacto
+                  <input value={supplierContact} onChange={(event) => setSupplierContact(event.target.value)} className="mt-1 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm" placeholder="Teléfono, email…" />
+                </label>
+                <label className="block text-sm font-medium">Notas
+                  <textarea value={supplierNotes} onChange={(event) => setSupplierNotes(event.target.value)} rows={2} className="mt-1 w-full resize-y rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm" placeholder="Datos útiles del proveedor" />
+                </label>
+              </div>
+              <div className="mt-4 flex gap-2">
+                <button type="submit" className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-orange-700 px-4 py-3 text-sm font-bold text-white transition hover:bg-orange-800">
+                  <Plus className="h-4 w-4" /> {editingSupplierId ? 'Guardar cambios' : 'Guardar proveedor'}
+                </button>
+                {editingSupplierId && <button type="button" onClick={resetSupplierForm} className="rounded-xl border border-stone-200 px-4 py-3 text-sm font-semibold">Cancelar</button>}
+              </div>
+            </form>
+
+            <form onSubmit={handleEntrySubmit} className="rounded-[28px] border border-stone-200 bg-white p-5 shadow-sm">
+              <h2 className="mb-1 text-lg font-bold">Anotar movimiento</h2>
+              <p className="mb-4 text-xs text-stone-500">Solo se agrega a este libro; no modifica caja ni stock.</p>
+              <div className="space-y-3">
+                <label className="block text-sm font-medium">Proveedor
+                  <select required value={selectedSupplierId} onChange={(event) => setSelectedSupplierId(event.target.value)} className="mt-1 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm">
+                    <option value="">Seleccionar proveedor</option>
+                    {suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}
+                  </select>
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="block text-sm font-medium">Tipo
+                    <select value={entryType} onChange={(event) => setEntryType(event.target.value as SupplierEntryType)} className="mt-1 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm">
+                      <option value="purchase">Compra</option>
+                      <option value="payment">Pago</option>
+                    </select>
+                  </label>
+                  <label className="block text-sm font-medium">Fecha
+                    <input required type="date" value={date} onChange={(event) => setDate(event.target.value)} className="mt-1 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm" />
+                  </label>
+                </div>
+                <label className="block text-sm font-medium">Detalle
+                  <input required value={detail} onChange={(event) => setDetail(event.target.value)} className="mt-1 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm" placeholder={entryType === 'purchase' ? 'Mercadería, factura o concepto' : 'Pago total, seña, transferencia…'} />
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="block text-sm font-medium">Importe
+                    <input required type="number" min="0.01" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} className="mt-1 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm" placeholder="0" />
+                  </label>
+                  <label className="block text-sm font-medium">Forma de pago
+                    <select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)} className="mt-1 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm">
+                      {paymentMethods.map((method) => <option key={method} value={method}>{method}</option>)}
+                    </select>
+                  </label>
+                </div>
+                <label className="block text-sm font-medium">N.º de factura / referencia <span className="font-normal text-stone-400">(opcional)</span>
+                  <input value={reference} onChange={(event) => setReference(event.target.value)} className="mt-1 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm" placeholder="Factura, recibo o comprobante" />
+                </label>
+              </div>
+              {error && <p role="alert" className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+              <button type="submit" disabled={suppliers.length === 0} className="mt-4 w-full rounded-xl bg-stone-800 px-4 py-3 text-sm font-bold text-white transition hover:bg-stone-900 disabled:cursor-not-allowed disabled:opacity-50">
+                Guardar {entryType === 'purchase' ? 'compra' : 'pago'}
+              </button>
+              {suppliers.length === 0 && <p className="mt-2 text-xs text-stone-500">Primero agregá un proveedor.</p>}
+            </form>
+          </div>
+
+          <section className="rounded-[28px] border border-stone-200 bg-white p-5 shadow-sm">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold">Historial de compras y pagos</h2>
+                <p className="mt-1 text-xs text-stone-500">{filteredEntries.length} movimientos anotados</p>
+              </div>
+              <select aria-label="Filtrar por proveedor" value={supplierFilter} onChange={(event) => setSupplierFilter(event.target.value)} className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm">
+                <option value="all">Todos los proveedores</option>
+                {suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}
+              </select>
+            </div>
+
+            {suppliers.length > 0 && (
+              <div className="mb-5 grid gap-3 sm:grid-cols-2">
+                {suppliers.map((supplier) => {
+                  const supplierEntries = entries.filter((entry) => entry.supplierId === supplier.id)
+                  const supplierBalance = supplierEntries.reduce((sum, entry) => sum + (entry.type === 'purchase' ? entry.amount : -entry.amount), 0)
+                  return (
+                    <article key={supplier.id} className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <h3 className="font-bold">{supplier.name}</h3>
+                          {supplier.contact && <p className="text-xs text-stone-500">{supplier.contact}</p>}
+                          {supplier.notes && <p className="mt-1 text-xs text-stone-500">{supplier.notes}</p>}
+                        </div>
+                        <div className="flex gap-1">
+                          <button type="button" onClick={() => { setEditingSupplierId(supplier.id); setSupplierName(supplier.name); setSupplierContact(supplier.contact); setSupplierNotes(supplier.notes) }} className="rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs font-semibold hover:bg-stone-100">Editar</button>
+                          <button type="button" onClick={() => handleRemoveSupplier(supplier.id, supplier.name)} className="rounded-lg border border-red-200 bg-white p-1.5 text-red-700 hover:bg-red-50" aria-label={`Eliminar proveedor ${supplier.name}`}><Trash2 className="h-3.5 w-3.5" /></button>
+                        </div>
+                      </div>
+                      <p className="mt-3 border-t border-stone-200 pt-2 text-sm font-bold">Saldo: ${supplierBalance.toLocaleString('es-AR')}</p>
+                    </article>
+                  )
+                })}
+              </div>
+            )}
+
+            <div className="space-y-3">
+              {filteredEntries.map((entry) => (
+                <article key={entry.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-stone-200 px-4 py-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${entry.type === 'purchase' ? 'bg-orange-100 text-orange-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                        {entry.type === 'purchase' ? 'COMPRA' : 'PAGO'}
+                      </span>
+                      <span className="font-semibold">{supplierNameById.get(entry.supplierId) ?? 'Proveedor eliminado'}</span>
+                    </div>
+                    <p className="mt-1 text-sm">{entry.detail}</p>
+                    <p className="text-xs text-stone-500">
+                      {entry.date} · {entry.paymentMethod}{entry.reference ? ` · Ref: ${entry.reference}` : ''}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <p className={`font-black ${entry.type === 'payment' ? 'text-emerald-700' : 'text-stone-800'}`}>
+                      {entry.type === 'payment' ? '−' : ''}${entry.amount.toLocaleString('es-AR')}
+                    </p>
+                    <button type="button" onClick={() => { if (window.confirm('¿Eliminar este movimiento del libro?')) removeEntry(entry.id) }} className="rounded-xl bg-stone-100 p-2 text-stone-600 transition hover:bg-red-50 hover:text-red-700" aria-label={`Eliminar movimiento ${entry.detail}`}>
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </article>
+              ))}
+              {filteredEntries.length === 0 && <p className="rounded-2xl bg-stone-50 p-6 text-center text-sm text-stone-500">Todavía no hay movimientos. Agregá un proveedor y anotá la primera compra o pago.</p>}
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+  )
+}
+
+
+

@@ -1,0 +1,244 @@
+﻿'use client'
+
+import { useEffect, useRef, useState } from 'react'
+import { ArrowLeft, Plus, Coffee, Trash2, Palette, ChevronDown, DollarSign, Package, Sparkles } from 'lucide-react'
+import Link from 'next/link'
+import { countSaleTickets, useSalesStore } from '@/store/salesStore'
+import { useShallow } from 'zustand/react/shallow'
+import SalesCheckout from '@/app/components/SalesCheckout'
+
+type ThemeMode = 'minimal-light' | 'minimal-dark' | 'normal-light' | 'normal-dark'
+
+const themeOptions = [
+  { id: 'minimal-light', label: 'Minimal (Light)' },
+  { id: 'minimal-dark', label: 'Minimal (Dark)' },
+  { id: 'normal-light', label: 'Normal (Light)' },
+  { id: 'normal-dark', label: 'Normal (Dark)' },
+] as const
+
+const normalizeCategory = (category: string) =>
+  category.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase()
+
+export default function BarPage() {
+  const [theme, setTheme] = useState<ThemeMode>('normal-light')
+  const [isThemeOpen, setIsThemeOpen] = useState(false)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  const productCatalog = useSalesStore(useShallow((state) =>
+    state.products.filter((product) => product.active && product.sections.includes('bar')),
+  ))
+  const sales = useSalesStore(useShallow((state) => state.getSectionSales('bar')))
+  const removeSale = useSalesStore((state) => state.removeSale)
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('emilia_theme') as ThemeMode | null
+    if (savedTheme) setTheme(savedTheme)
+  }, [])
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsThemeOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const isDark = theme.includes('dark')
+
+  const handleThemeChange = (newTheme: ThemeMode) => {
+    setTheme(newTheme)
+    localStorage.setItem('emilia_theme', newTheme)
+    setIsThemeOpen(false)
+  }
+
+  const totalVentas = sales.reduce((acc, sale) => acc + sale.total, 0)
+  const tickets = countSaleTickets(sales)
+  const promedio = tickets > 0 ? totalVentas / tickets : 0
+  const ventasPorProducto = sales.reduce<Record<string, number>>((acc, sale) => {
+    acc[sale.item] = (acc[sale.item] ?? 0) + sale.quantity
+    return acc
+  }, {})
+  const topProduct = Object.entries(ventasPorProducto).sort((a, b) => b[1] - a[1])[0]
+  const foodProducts = productCatalog.filter((product) => normalizeCategory(product.category) !== 'bebidas')
+  const drinkProducts = productCatalog.filter((product) => normalizeCategory(product.category) === 'bebidas')
+
+  return (
+    <main className={`min-h-screen p-4 md:p-8 transition-colors duration-300 ${isDark ? 'bg-stone-950 text-stone-100' : 'bg-[#FAFAFA] text-stone-800'}`}>
+      <div className="mx-auto max-w-7xl">
+        <header className={`mb-6 flex flex-col gap-4 rounded-[28px] border px-5 py-4 shadow-sm md:flex-row md:items-center md:justify-between ${isDark ? 'border-stone-800 bg-stone-900' : 'border-stone-200/80 bg-white'}`}>
+          <div className="flex items-center gap-3">
+            <Link href="/" className={`rounded-xl p-2.5 transition ${isDark ? 'bg-stone-800 text-[#8C1D40] hover:bg-stone-700' : 'bg-[#FDECEF] text-[#8C1D40] hover:bg-[#F9D6DE]'}`} aria-label="Volver al inicio">
+              <ArrowLeft className="h-5 w-5" />
+            </Link>
+            <div>
+              <h1 className="flex items-center gap-2 text-lg font-bold tracking-tight">
+                Bar Emilia
+                <span className={`text-xs font-medium ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
+                  | barra y tragos
+                </span>
+              </h1>
+              <p className={`text-xs ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>Carta editable de menú del día y bebidas</p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-3">
+            <div className="relative" ref={dropdownRef}>
+              <button onClick={() => setIsThemeOpen((prev) => !prev)} className={`flex items-center gap-2 rounded-xl border px-3.5 py-2.5 text-xs font-bold transition ${isDark ? 'border-stone-700 bg-stone-800 text-[#F9D6DE] hover:bg-stone-700' : 'border-stone-200 bg-stone-100 text-stone-700 hover:bg-stone-200'}`}>
+                <Palette className="h-3.5 w-3.5 text-[#8C1D40]" />
+                <span>Theme: {themeOptions.find((opt) => opt.id === theme)?.label}</span>
+                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isThemeOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {isThemeOpen && (
+                <div className={`absolute right-0 z-50 mt-2 w-44 rounded-2xl border py-1.5 shadow-xl ${isDark ? 'border-stone-800 bg-stone-900 text-stone-200' : 'border-stone-200 bg-white text-stone-800'}`}>
+                  {themeOptions.map((opt) => (
+                    <button key={opt.id} onClick={() => handleThemeChange(opt.id)} className={`flex w-full items-center justify-between px-4 py-2 text-left text-xs font-medium transition ${theme === opt.id ? (isDark ? 'bg-stone-800 text-[#F9D6DE]' : 'bg-[#FDECEF] text-[#8C1D40]') : (isDark ? 'hover:bg-stone-800/60' : 'hover:bg-stone-50')}`}>
+                      <span>{opt.label}</span>
+                      {theme === opt.id && <span className="h-1.5 w-1.5 rounded-full bg-[#8C1D40]" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <Link href="/inventario" className={`flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-bold transition ${isDark ? 'border-stone-700 text-[#F9D6DE] hover:bg-stone-800' : 'border-stone-200 text-[#8C1D40] hover:bg-[#FFF7F8]'}`}>
+              Editar carta
+            </Link>
+            <button onClick={() => setIsModalOpen(true)} className="flex shrink-0 items-center gap-2 rounded-xl bg-[#8C1D40] px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#6F1632]">
+              <Plus className="h-4 w-4" />
+              Registrar venta
+            </button>
+          </div>
+        </header>
+
+        <section className={`mb-6 grid gap-4 rounded-[28px] border p-5 md:grid-cols-4 ${isDark ? 'border-stone-800 bg-stone-900' : 'border-stone-200/80 bg-white'}`}>
+          <div className={`rounded-2xl border p-4 ${isDark ? 'border-stone-800 bg-stone-950' : 'border-stone-200 bg-[#FFF7F8]'}`}>
+            <div className="mb-3 flex items-center justify-between">
+              <span className={`text-xs font-semibold ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>Ventas del día</span>
+              <div className={`rounded-xl p-2 ${isDark ? 'bg-stone-800 text-[#F9D6DE]' : 'bg-[#FDECEF] text-[#8C1D40]'}`}>
+                <DollarSign className="h-4 w-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-black">${totalVentas.toLocaleString('es-AR')}</p>
+          </div>
+
+          <div className={`rounded-2xl border p-4 ${isDark ? 'border-stone-800 bg-stone-950' : 'border-stone-200 bg-[#FFF7F8]'}`}>
+            <div className="mb-3 flex items-center justify-between">
+              <span className={`text-xs font-semibold ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>Tickets</span>
+              <div className={`rounded-xl p-2 ${isDark ? 'bg-stone-800 text-[#F9D6DE]' : 'bg-[#FDECEF] text-[#8C1D40]'}`}>
+                <Package className="h-4 w-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-black">{tickets}</p>
+          </div>
+
+          <div className={`rounded-2xl border p-4 ${isDark ? 'border-stone-800 bg-stone-950' : 'border-stone-200 bg-[#FFF7F8]'}`}>
+            <div className="mb-3 flex items-center justify-between">
+              <span className={`text-xs font-semibold ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>Promedio</span>
+              <div className={`rounded-xl p-2 ${isDark ? 'bg-stone-800 text-[#F9D6DE]' : 'bg-[#FDECEF] text-[#8C1D40]'}`}>
+                <Sparkles className="h-4 w-4" />
+              </div>
+            </div>
+            <p className="text-2xl font-black">${Math.round(promedio).toLocaleString('es-AR')}</p>
+          </div>
+
+          <div className={`rounded-2xl border p-4 ${isDark ? 'border-stone-800 bg-stone-950' : 'border-stone-200 bg-[#FFF7F8]'}`}>
+            <div className="mb-3 flex items-center justify-between">
+              <span className={`text-xs font-semibold ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>Más vendido</span>
+              <div className={`rounded-xl p-2 ${isDark ? 'bg-stone-800 text-[#F9D6DE]' : 'bg-[#FDECEF] text-[#8C1D40]'}`}>
+                <Coffee className="h-4 w-4" />
+              </div>
+            </div>
+            <p className="text-lg font-black">{topProduct ? `${topProduct[0]} (${topProduct[1]})` : 'Sin ventas'}</p>
+          </div>
+        </section>
+
+        <section className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
+          <div className={`rounded-[28px] border p-5 ${isDark ? 'border-stone-800 bg-stone-900' : 'border-stone-200/80 bg-white'}`}>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold">Últimos movimientos</h2>
+              <span className={`text-xs ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>Barra y tragos</span>
+            </div>
+
+            <div className="space-y-3">
+              {sales.map((sale) => (
+                <div key={sale.id} className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 ${isDark ? 'border-stone-800 bg-stone-950' : 'border-stone-200 bg-[#FFFDFD]'}`}>
+                  <div className="flex items-center gap-3">
+                    <div className={`rounded-xl p-2.5 ${isDark ? 'bg-stone-800 text-[#F9D6DE]' : 'bg-[#FDECEF] text-[#8C1D40]'}`}>
+                      <Coffee className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="font-bold">{sale.item}</p>
+                      <p className={`text-xs ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>
+                        {sale.quantity} unidades · {new Date(sale.createdAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Argentina/Buenos_Aires' })}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <p className="text-base font-black">${sale.total.toLocaleString('es-AR')}</p>
+                    <button onClick={() => removeSale(sale.id)} className={`rounded-xl p-2 transition ${isDark ? 'bg-stone-800 text-stone-200 hover:bg-stone-700' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}`} aria-label={`Eliminar venta de ${sale.item}`}>
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <aside className={`rounded-[28px] border p-5 ${isDark ? 'border-stone-800 bg-stone-900' : 'border-stone-200/80 bg-white'}`}>
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold">Carta del bar</h2>
+                <p className={`mt-1 text-xs ${isDark ? 'text-stone-400' : 'text-stone-500'}`}>Los productos y precios se editan desde Inventario.</p>
+              </div>
+              <Link href="/inventario" className="shrink-0 text-xs font-semibold text-[#8C1D40] hover:underline">Administrar</Link>
+            </div>
+            <div className="grid gap-5 md:grid-cols-2">
+              {[
+                { title: 'Comidas', products: foodProducts },
+                { title: 'Bebidas', products: drinkProducts },
+              ].map((category) => (
+                <section key={category.title}>
+                  <h3 className={`mb-2 border-b pb-2 text-sm font-bold ${isDark ? 'border-stone-800 text-[#F9D6DE]' : 'border-stone-200 text-[#8C1D40]'}`}>{category.title}</h3>
+                  <div className="space-y-3">
+                    {category.products.map((product) => {
+                const sold = sales.filter((sale) => sale.productId === product.id).reduce((acc, sale) => acc + sale.quantity, 0)
+                return (
+                  <div key={product.id} className={`rounded-2xl border p-3 ${isDark ? 'border-stone-800 bg-stone-950' : 'border-stone-200 bg-[#FFF8F9]'}`}>
+                    <div className="mb-2 flex items-center justify-between">
+                      <div>
+                        <span className="font-semibold">{product.name}</span>
+                        {product.offerName && <p className="mt-0.5 text-xs font-semibold text-amber-600">{product.offerName}</p>}
+                      </div>
+                      <span className={`text-sm font-bold ${isDark ? 'text-stone-200' : 'text-stone-800'}`}>${(product.offerPrice ?? product.price).toLocaleString('es-AR')}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className={isDark ? 'text-stone-400' : 'text-stone-500'}>Vendidos</span>
+                      <span className="font-bold">{sold}</span>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between text-xs">
+                      <span className={isDark ? 'text-stone-400' : 'text-stone-500'}>Stock compartido</span>
+                      <span className={`font-bold ${product.stock <= 5 ? 'text-amber-500' : 'text-emerald-500'}`}>{product.stock} {product.unit}</span>
+                    </div>
+                  </div>
+                )
+                    })}
+                    {category.products.length === 0 && <p className={`rounded-xl p-3 text-xs ${isDark ? 'bg-stone-950 text-stone-400' : 'bg-stone-50 text-stone-500'}`}>Sin productos en esta categoría.</p>}
+                  </div>
+                </section>
+              ))}
+              {productCatalog.length === 0 && <div className={`md:col-span-2 rounded-2xl border border-dashed p-5 text-center ${isDark ? 'border-stone-700 text-stone-300' : 'border-stone-300 text-stone-600'}`}><p className="font-semibold">La carta todavía está vacía.</p><p className="mt-1 text-xs">Desde Inventario agregá productos y asignales la sección Bar; los que tengan categoría “Bebidas” aparecerán en esta columna.</p><Link href="/inventario" className="mt-3 inline-block rounded-xl bg-[#8C1D40] px-3 py-2 text-xs font-bold text-white">Crear carta</Link></div>}
+            </div>
+          </aside>
+        </section>
+      </div>
+
+      {isModalOpen && <SalesCheckout section="bar" products={productCatalog} isDark={isDark} onClose={() => setIsModalOpen(false)} />}
+    </main>
+  )
+}
